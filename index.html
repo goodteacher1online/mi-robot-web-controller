@@ -290,7 +290,7 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 20px 0;
+      padding: 16px 0;
     }
     .joystick-base {
       width: 180px;
@@ -363,9 +363,7 @@
       border-radius: 3px;
     }
 
-    /* ========================================================
-       PIANO KEYBOARD (Mathematical Precision Flex + Calc Grid)
-       ======================================================== */
+    /* Piano Keyboard */
     .piano-wrapper {
       background: var(--tab-bg);
       border: 1px solid var(--card-border);
@@ -379,7 +377,7 @@
       position: relative;
       display: flex;
       width: 100%;
-      min-width: 340px;
+      min-width: 320px;
       max-width: 480px;
       height: 160px;
       margin: 0 auto;
@@ -415,12 +413,13 @@
     /* Black Keys */
     .black-key {
       position: absolute;
-      width: clamp(26px, 6.2%, 34px);
+      width: clamp(26px, 7%, 36px);
       height: 62%;
       background: #1e293b;
       border-radius: 0 0 5px 5px;
       z-index: 5;
       top: 0;
+      transform: translateX(-50%);
       display: flex;
       flex-direction: column;
       justify-content: flex-end;
@@ -437,12 +436,10 @@
     .black-key:active, .black-key.active {
       background: #0f172a;
       color: #38bdf8;
-      transform: translateY(2px);
+      transform: translate(-50%, 2px);
     }
 
-    /* ========================================================
-       SUPERVISED ML STUDIO (Teachable Machine / CreateAI Style)
-       ======================================================== */
+    /* Supervised ML Studio */
     .ml-class-card {
       background: var(--card-bg);
       border: 1px solid var(--card-border);
@@ -635,7 +632,7 @@
   <!-- ================= TAB 1: CONTROLLER ================= -->
   <section id="tabSecControl" class="tab-section active">
     <div class="card">
-      <div style="display:flex; justify-content:center; gap:8px; margin-bottom:12px;">
+      <div style="display:flex; justify-content:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
         <button class="btn-action" onclick="setDriveMode('joystick')">
           <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
           조이스틱
@@ -643,6 +640,9 @@
         <button class="btn-action" onclick="setDriveMode('dpad')">
           <svg class="icon-sm" viewBox="0 0 24 24"><path d="M12 2v20M2 12h20"/></svg>
           방향 패드
+        </button>
+        <button id="btnCreepMode" class="btn-action" onclick="toggleCreepMode()">
+          🐢 미세 저속 모드: OFF
         </button>
         <button id="btnEmergencyStop" class="btn-action danger" style="margin-left:auto;">
           <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>
@@ -663,9 +663,15 @@
       </div>
 
       <div class="setting-row">
-        <span class="setting-label">최대 주행 속도</span>
-        <input type="range" id="speedSlider" class="slider" min="30" max="100" value="85">
+        <span class="setting-label">주행 속도 제한</span>
+        <div style="display:flex; align-items:center; gap:10px;">
+          <input type="range" id="speedSlider" class="slider" min="10" max="100" value="70" oninput="updateSpeedDisplay(this.value)">
+          <span id="speedValBadge" class="ml-sample-pill" style="min-width:44px; text-align:center;">70%</span>
+        </div>
       </div>
+      <p style="font-size:0.72rem; color:var(--text-dim); margin-top:6px;">
+        💡 지수 감도 곡선이 적용되어 레버를 살짝 밀면 초저속으로 섬세하게 전진하며, 끝까지 밀면 설정된 최대 속도로 주행합니다.
+      </p>
     </div>
   </section>
 
@@ -724,11 +730,11 @@
           <div class="white-key" data-note="24">B4</div>
 
           <!-- Mathematically Aligned Black Keys -->
-          <div class="black-key" data-note="14" style="left: calc((100% / 7) * 1 - (clamp(26px, 6.2%, 34px) / 2));">C#4</div>
-          <div class="black-key" data-note="16" style="left: calc((100% / 7) * 2 - (clamp(26px, 6.2%, 34px) / 2));">D#4</div>
-          <div class="black-key" data-note="19" style="left: calc((100% / 7) * 4 - (clamp(26px, 6.2%, 34px) / 2));">F#4</div>
-          <div class="black-key" data-note="21" style="left: calc((100% / 7) * 5 - (clamp(26px, 6.2%, 34px) / 2));">G#4</div>
-          <div class="black-key" data-note="23" style="left: calc((100% / 7) * 6 - (clamp(26px, 6.2%, 34px) / 2));">A#4</div>
+          <div class="black-key" data-note="14" style="left: 14.285%;">C#4</div>
+          <div class="black-key" data-note="16" style="left: 28.571%;">D#4</div>
+          <div class="black-key" data-note="19" style="left: 57.143%;">F#4</div>
+          <div class="black-key" data-note="21" style="left: 71.428%;">G#4</div>
+          <div class="black-key" data-note="23" style="left: 85.714%;">A#4</div>
         </div>
       </div>
 
@@ -872,6 +878,11 @@
     window.piano = piano;
     window.ml = ml;
 
+    // Unlock Audio Context on First Touch
+    document.addEventListener('pointerdown', () => {
+      piano.unlockAudio();
+    }, { once: true });
+
     // Elements
     const btnConnect = document.getElementById('btnConnect');
     const statusBadge = document.getElementById('statusBadge');
@@ -952,8 +963,15 @@
     });
 
     btnConnect.addEventListener('click', async () => {
-      if (robot.isConnected) await robot.disconnect();
-      else try { await robot.connect(); } catch (e) { alert(e.message); }
+      if (robot.isConnected) {
+        await robot.disconnect();
+      } else {
+        try {
+          await robot.connect();
+        } catch (e) {
+          alert('블루투스 연결 안내:\n' + e.message);
+        }
+      }
     });
 
     function updateVolume(val) {
@@ -1003,8 +1021,11 @@
       const play = (e) => {
         e.preventDefault();
         key.classList.add('active');
+        piano.unlockAudio();
         piano.playNote(noteId);
-        if (robot.isConnected) robot.playTone(noteId);
+        if (robot.isConnected) {
+          robot.playTone(noteId);
+        }
       };
       const release = (e) => {
         e.preventDefault();
@@ -1017,6 +1038,7 @@
 
     function playDemoSong() {
       // Sol Sol La La Sol Sol Mi (20, 20, 22, 22, 20, 20, 17)
+      piano.unlockAudio();
       piano.playMelody([20, 20, 22, 22, 20, 20, 17, 20, 20, 17, 17, 15], 300);
       if (robot.isConnected) {
         [20, 20, 22, 22, 20, 20, 17, 20, 20, 17, 17, 15].forEach((n, idx) => {
@@ -1164,8 +1186,8 @@
       else if (act === 'horn') robot.playTone(25);
       else if (act === 'melody') playDemoSong();
       else if (act === 'calibrate') robot.calibrateBalance();
-      else if (act === 'forward') robot.setDrive(128, 200);
-      else if (act === 'backward') robot.setDrive(128, 56);
+      else if (act === 'forward') robot.setDrive(128, 175);
+      else if (act === 'backward') robot.setDrive(128, 80);
     }
 
     renderMLClasses();
@@ -1186,7 +1208,7 @@
           btn.textContent = '카메라 끄기';
           btn.className = 'btn-action danger';
         } catch (e) {
-          alert(e.message);
+          alert('카메라 시작 오류: ' + e.message);
         }
       }
     }
@@ -1205,11 +1227,29 @@
       }
     });
 
-    // 9. Joystick & D-Pad Setup
+    // 9. Joystick & Delicate Wide-Spectrum Speed Control
     const base = document.getElementById('joystickBase');
     const thumb = document.getElementById('joystickThumb');
     let isDragging = false;
     let cachedRect = null;
+    let isCreepMode = false;
+
+    function toggleCreepMode() {
+      isCreepMode = !isCreepMode;
+      const btn = document.getElementById('btnCreepMode');
+      if (isCreepMode) {
+        btn.className = 'btn-action accent';
+        btn.innerHTML = '🐢 미세 저속 모드: ON (정밀 탐사)';
+      } else {
+        btn.className = 'btn-action';
+        btn.innerHTML = '🐢 미세 저속 모드: OFF';
+      }
+    }
+
+    function updateSpeedDisplay(val) {
+      const badge = document.getElementById('speedValBadge');
+      if (badge) badge.textContent = `${val}%`;
+    }
 
     base.addEventListener('pointerdown', (e) => {
       isDragging = true;
@@ -1219,11 +1259,42 @@
 
     base.addEventListener('pointermove', (e) => {
       if (!isDragging || !cachedRect) return;
-      const dx = e.clientX - (cachedRect.left + cachedRect.width / 2);
-      const dy = e.clientY - (cachedRect.top + cachedRect.height / 2);
-      thumb.style.transform = `translate(calc(-50% + ${Math.max(-60, Math.min(60, dx))}px), calc(-50% + ${Math.max(-60, Math.min(60, dy))}px))`;
-      robot.setDrive(Math.round(128 + (dx / 60) * 127), Math.round(128 - (dy / 60) * 127));
-      hudDrive.textContent = `${Math.round(dx)}/${Math.round(-dy)}`;
+      const rawDx = e.clientX - (cachedRect.left + cachedRect.width / 2);
+      const rawDy = e.clientY - (cachedRect.top + cachedRect.height / 2);
+
+      const maxRadius = 60;
+      const dist = Math.hypot(rawDx, rawDy);
+      const clampedDist = Math.min(maxRadius, dist);
+      const angle = Math.atan2(rawDy, rawDx);
+
+      const clampedX = Math.cos(angle) * clampedDist;
+      const clampedY = Math.sin(angle) * clampedDist;
+
+      thumb.style.transform = `translate(calc(-50% + ${clampedX}px), calc(-50% + ${clampedY}px))`;
+
+      // Normalized stick offsets [-1.0 to +1.0]
+      let nx = clampedX / maxRadius;
+      let ny = -clampedY / maxRadius; // Up is forward
+
+      // 5% Deadband: perfectly snaps to neutral 128
+      if (Math.abs(nx) < 0.05) nx = 0;
+      if (Math.abs(ny) < 0.05) ny = 0;
+
+      // Exponential sensitivity curve (power 1.6) for nuanced, ultra-fine low-speed control
+      const curve = (v) => Math.sign(v) * Math.pow(Math.abs(v), 1.6);
+      const curvedX = curve(nx);
+      const curvedY = curve(ny);
+
+      // Slider percentage (10% ~ 100%) and Creep Mode factor (0.35)
+      const sliderPct = parseInt(document.getElementById('speedSlider').value) / 100;
+      const creepFactor = isCreepMode ? 0.35 : 1.0;
+      const totalSpeedMult = sliderPct * creepFactor;
+
+      const finalX = Math.round(128 + curvedX * totalSpeedMult * 127);
+      const finalY = Math.round(128 + curvedY * totalSpeedMult * 127);
+
+      robot.setDrive(finalX, finalY);
+      hudDrive.textContent = `${Math.round(curvedX * totalSpeedMult * 100)}% / ${Math.round(curvedY * totalSpeedMult * 100)}%`;
     });
 
     const stopJoy = () => {
@@ -1236,14 +1307,18 @@
     base.addEventListener('pointerup', stopJoy);
     base.addEventListener('pointercancel', stopJoy);
 
-    // D-Pad Button Setup
+    // D-Pad Button Setup (linked with speedSlider & Creep Mode)
     document.querySelectorAll('.dpad-btn').forEach(btn => {
       const startDrive = (e) => {
         e.preventDefault();
         const dir = btn.dataset.dir;
-        const speed = parseInt(document.getElementById('speedSlider').value) / 100;
-        const hi = Math.round(128 + 127 * speed);
-        const lo = Math.round(128 - 127 * speed);
+        const sliderPct = parseInt(document.getElementById('speedSlider').value) / 100;
+        const creepFactor = isCreepMode ? 0.35 : 1.0;
+        const speedMult = sliderPct * creepFactor;
+
+        const hi = Math.round(128 + 127 * speedMult);
+        const lo = Math.round(128 - 127 * speedMult);
+
         if (dir === 'F') robot.setDrive(128, hi);
         else if (dir === 'B') robot.setDrive(128, lo);
         else if (dir === 'L') robot.setDrive(lo, 128);
@@ -1271,14 +1346,23 @@
       if (e.target.tagName === 'INPUT') return;
       hudInput.textContent = '키보드';
       const key = e.key.toLowerCase();
-      if (key === 'w') robot.setDrive(128, 220);
-      else if (key === 's') robot.setDrive(128, 36);
-      else if (key === 'a') robot.setDrive(36, 128);
-      else if (key === 'd') robot.setDrive(220, 128);
+      const sliderPct = parseInt(document.getElementById('speedSlider').value) / 100;
+      const creepFactor = isCreepMode ? 0.35 : 1.0;
+      const speedMult = sliderPct * creepFactor;
+
+      const hi = Math.round(128 + 127 * speedMult);
+      const lo = Math.round(128 - 127 * speedMult);
+
+      if (key === 'w') robot.setDrive(128, hi);
+      else if (key === 's') robot.setDrive(128, lo);
+      else if (key === 'a') robot.setDrive(lo, 128);
+      else if (key === 'd') robot.setDrive(hi, 128);
       else if (key === ' ') { robot.sendStop(); stopJoy(); }
+
       // Piano keyboard notes (a, s, d, f, g, h, j)
       const pianoMap = { 'a': 13, 's': 15, 'd': 17, 'f': 18, 'g': 20, 'h': 22, 'j': 24 };
       if (pianoMap[key]) {
+        piano.unlockAudio();
         piano.playNote(pianoMap[key]);
         if (robot.isConnected) robot.playTone(pianoMap[key]);
       }

@@ -1,12 +1,12 @@
 /**
- * Mi Robot Builder (Xiaomi Mitu Block Robot) Web Bluetooth Protocol
- * Reverse engineered with REA & Binary Disassembly
- * Step 2: Added Self-Balancing (Gyro Calibration, PID Tuning, Sensor Telemetry)
+ * Mi Robot Builder (Xiaomi) Web Bluetooth NUS Driver
+ * Protocol: Nordic UART Service (NUS)
+ * Reverse engineered from official Xiaomi APK (classes.dex & libcocos2dcpp.so)
  */
 
 const NUS_SERVICE_UUID = '6e400001-b5a3-f393-e0a9-e50e24dcca9e';
-const NUS_RX_UUID      = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // Phone -> Robot (Write)
-const NUS_TX_UUID      = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'; // Robot -> Phone (Notify)
+const NUS_RX_UUID      = '6e400002-b5a3-f393-e0a9-e50e24dcca9e'; // Write without response
+const NUS_TX_UUID      = '6e400003-b5a3-f393-e0a9-e50e24dcca9e'; // Notify
 
 class MiRobotBLE extends EventTarget {
   constructor() {
@@ -51,37 +51,39 @@ class MiRobotBLE extends EventTarget {
     this.heartbeatTimer = null;
   }
 
-  log(msg, type = 'info') {
-    this.dispatchEvent(new CustomEvent('log', { detail: { msg, type, timestamp: new Date() } }));
-    console.log(`[MiRobot] ${msg}`);
+  log(msg, level = 'info') {
+    const time = new Date().toLocaleTimeString();
+    console.log(`[${time}] [BLE ${level.toUpperCase()}] ${msg}`);
+    this.dispatchEvent(new CustomEvent('log', { detail: { message: msg, level, time } }));
   }
 
-  /**
-   * 20-byte packet with XOR checksum
-   */
-  buildPacket(payload18) {
-    const packet = new Uint8Array(20);
+  computeChecksum(bytes) {
     let xor = 0;
     for (let i = 0; i < 18; i++) {
-      const b = (payload18 && payload18[i] !== undefined) ? payload18[i] : 0;
-      packet[i] = b;
-      xor ^= b;
+      xor ^= bytes[i];
     }
-    packet[18] = xor & 0xff;
-    packet[19] = 0xaa; // Trailer
-    return packet;
+    return xor;
+  }
+
+  buildPacket(payload18) {
+    const full = new Uint8Array(20);
+    full.set(payload18.subarray(0, 18), 0);
+    full[18] = this.computeChecksum(full);
+    full[19] = 0xAA;
+    return full;
   }
 
   buildConnectPacket() {
     const p = new Uint8Array(18);
     p[0] = 0x55; p[1] = 0x01; p[2] = 0x01; p[3] = 0x00;
+    p[16] = 0x55; p[17] = 0x55;
     return this.buildPacket(p);
   }
 
   buildRockerPacket(x, y) {
     const p = new Uint8Array(18);
     p[0] = 0x55;
-    p[1] = 0x02; // Movement
+    p[1] = 0x02; // Movement group
     p[2] = 0x02;
     p[3] = 0x00;
 
@@ -92,8 +94,8 @@ class MiRobotBLE extends EventTarget {
     if (this.invertY) finalY = (256 - finalY) & 0xff;
 
     // Xiaomi Protocol Rocker Encoding:
-    // Byte 4: X axis (0~255, center=128), Byte 5: 0x00 (padding/high)
-    // Byte 6: Y axis (0~255, center=128), Byte 7: 0x00 (padding/high)
+    // Byte 4: X axis (0~255, center=128), Byte 5: 0x00
+    // Byte 6: Y axis (0~255, center=128), Byte 7: 0x00
     p[4] = finalX & 0xff;
     p[5] = 0x00;
     p[6] = finalY & 0xff;
@@ -102,10 +104,6 @@ class MiRobotBLE extends EventTarget {
     return this.buildPacket(p);
   }
 
-  /**
-   * MICailbrationMessageCommand (0x55 0x06 0x00 0x00 [kind] [value]...)
-   * Zero-point gyro & balance offset reset
-   */
   buildCalibrationPacket(calibKind = 1, calibVal = 0) {
     const p = new Uint8Array(18);
     p[0] = 0x55;
@@ -117,64 +115,53 @@ class MiRobotBLE extends EventTarget {
     return this.buildPacket(p);
   }
 
-  /**
-   * MIGetPIDCommand: Requests current PID gain settings stored in robot
-   */
   buildGetPIDPacket() {
     const p = new Uint8Array(18);
     p[0] = 0x55;
     p[1] = 0x03; // PID group
     p[2] = 0x00;
-    p[3] = 0x01; // Get PID
+    p[3] = 0x01; // Read command
     return this.buildPacket(p);
   }
 
-  /**
-   * MISavePIDCommand: Saves current PID tuning to flash memory
-   */
+  buildSetAnglePIDPacket(pGain, dGain) {
+    const p = new Uint8Array(18);
+    p[0] = 0x55;
+    p[1] = 0x03;
+    p[2] = 0x00;
+    p[3] = 0x03; // Set Angle PID
+    p[4] = Math.max(0, Math.min(255, Math.round(pGain))) & 0xff;
+    p[5] = Math.max(0, Math.min(255, Math.round(dGain))) & 0xff;
+    return this.buildPacket(p);
+  }
+
+  buildSetSpeedPIDPacket(pGain, iGain) {
+    const p = new Uint8Array(18);
+    p[0] = 0x55;
+    p[1] = 0x03;
+    p[2] = 0x00;
+    p[3] = 0x05; // Set Speed PID
+    p[4] = Math.max(0, Math.min(255, Math.round(pGain))) & 0xff;
+    p[5] = Math.max(0, Math.min(255, Math.round(iGain))) & 0xff;
+    return this.buildPacket(p);
+  }
+
   buildSavePIDPacket() {
     const p = new Uint8Array(18);
     p[0] = 0x55;
     p[1] = 0x03;
     p[2] = 0x00;
-    p[3] = 0x07; // Save PID
-    return this.buildPacket(p);
-  }
-
-  /**
-   * MISetAnglePCommand & MISetAngleDCommand
-   */
-  buildSetAnglePIDPacket(angleP, angleD) {
-    const p = new Uint8Array(18);
-    p[0] = 0x55;
-    p[1] = 0x03;
-    p[2] = 0x00;
-    p[3] = 0x03; // Angle PID
-    p[4] = angleP & 0xff;
-    p[5] = angleD & 0xff;
-    p[6] = 0x00;
-    return this.buildPacket(p);
-  }
-
-  /**
-   * MISetSpeedPCommand & MISetSpeedICommand
-   */
-  buildSetSpeedPIDPacket(speedP, speedI) {
-    const p = new Uint8Array(18);
-    p[0] = 0x55;
-    p[1] = 0x03;
-    p[2] = 0x00;
-    p[3] = 0x05; // Speed PID
-    p[4] = speedP & 0xff;
-    p[5] = speedI & 0xff;
-    p[6] = 0x00;
+    p[3] = 0x07; // Save PID to Flash
     return this.buildPacket(p);
   }
 
   buildSoundPacket(soundId = 1) {
     const p = new Uint8Array(18);
-    p[0] = 0x55; p[1] = 0x02; p[2] = 0x02; p[3] = 0x02;
-    p[4] = soundId & 0xff;
+    p[0] = 0x55;
+    p[1] = 0x02; // Sound effect
+    p[2] = 0x02;
+    p[3] = 0x02;
+    p[4] = Math.max(1, Math.min(36, Math.round(soundId))) & 0xff;
     return this.buildPacket(p);
   }
 
@@ -192,6 +179,17 @@ class MiRobotBLE extends EventTarget {
     if (!navigator.bluetooth) {
       throw new Error('이 브라우저는 Web Bluetooth를 지원하지 않습니다. Chrome 또는 Edge 브라우저를 사용해 주세요.');
     }
+
+    // Clean up previous dead session if any
+    if (this.device && this.device.gatt && this.device.gatt.connected) {
+      try { this.device.gatt.disconnect(); } catch (e) {}
+    }
+    this.isConnected = false;
+    this.server = null;
+    this.rxChar = null;
+    this.txChar = null;
+    this._writeQueue = Promise.resolve();
+    this._queueDepth = 0;
 
     this.log('로봇 블루투스 검색 중... 로봇 전원을 켜주세요.', 'info');
 
@@ -226,7 +224,7 @@ class MiRobotBLE extends EventTarget {
       this.log('✅ 로봇 연결 성공! 조종 준비 완료.', 'success');
 
       // Handshake & Initial Setup
-      await this.writeRaw(this.buildConnectPacket());
+      await this.writeRaw(this.buildConnectPacket(), true);
       await this.setVolume(this.volume);
 
       this.dispatchEvent(new CustomEvent('connectionchange', { detail: { connected: true, deviceName: this.device.name } }));
@@ -248,55 +246,78 @@ class MiRobotBLE extends EventTarget {
       this.telemetry.lastUpdated = new Date();
 
       // Battery / Status packet
-      if (val[1] === 0x03) {
+      if (val[1] === 0x01 && val[2] === 0x02) {
         this.telemetry.battery = val[4];
+        this.dispatchEvent(new CustomEvent('telemetry', { detail: this.telemetry }));
       }
 
-      // Gyro / Tilt packet (Pitch & Roll)
-      // Reverse-engineered format: 0x55 0x06 (Gyro report) or sensor packet
-      if (val[1] === 0x06 || val[1] === 0x04) {
-        // signed 16-bit pitch / roll
-        const view = new DataView(val.buffer);
-        if (val.length >= 10) {
-          this.telemetry.pitch = view.getInt16(4, true) / 10.0;
-          this.telemetry.roll = view.getInt16(6, true) / 10.0;
-        }
-      }
+      // Gyro / IMU Balance packet (Group 0x03 or 0x06)
+      if (val[1] === 0x03 || val[1] === 0x06) {
+        // Raw signed 16-bit pitch angle
+        let rawPitch = (val[4] << 8) | val[5];
+        if (rawPitch > 32767) rawPitch -= 65536;
+        this.telemetry.pitch = rawPitch / 10.0;
 
-      this.dispatchEvent(new CustomEvent('telemetry', { detail: { ...this.telemetry, raw: val } }));
+        let rawRoll = (val[6] << 8) | val[7];
+        if (rawRoll > 32767) rawRoll -= 65536;
+        this.telemetry.roll = rawRoll / 10.0;
+
+        this.dispatchEvent(new CustomEvent('telemetry', { detail: this.telemetry }));
+      }
     }
   }
 
-  /**
-   * Send 0-point balance calibration command
-   */
   async calibrateBalance() {
+    this.log('⚖️ 수평 0점 캘리브레이션 전송 중...', 'info');
     if (!this.isConnected) return;
-    this.log('⚖️ 수평 0점 캘리브레이션 명령 전송 중... 로봇을 반듯하게 세워주세요.', 'info');
-    await this.writeRaw(this.buildCalibrationPacket(1, 0));
-    this.log('✅ 캘리브레이션 패킷 전송 완료.', 'success');
+    await this.writeRaw(this.buildCalibrationPacket(1, 0), true);
+    this.log('✅ 캘리브레이션 명령 전송 완료.', 'success');
   }
 
-  /**
-   * Apply & save new PID balance parameters
-   */
+  async readPIDGains() {
+    if (!this.isConnected) return;
+    this.log('⚙️ PID 설정 조회 중...', 'info');
+    await this.writeRaw(this.buildGetPIDPacket(), true);
+  }
+
   async setBalancePID(angleP, angleD, speedP, speedI) {
     if (!this.isConnected) return;
     this.pid = { angleP, angleD, speedP, speedI };
     this.log(`⚙️ PID 게인 설정 전송 (P:${angleP}, D:${angleD}, SpdP:${speedP}, SpdI:${speedI})`, 'info');
-    await this.writeRaw(this.buildSetAnglePIDPacket(angleP, angleD));
-    await this.writeRaw(this.buildSetSpeedPIDPacket(speedP, speedI));
-    await this.writeRaw(this.buildSavePIDPacket());
+    await this.writeRaw(this.buildSetAnglePIDPacket(angleP, angleD), true);
+    await this.writeRaw(this.buildSetSpeedPIDPacket(speedP, speedI), true);
+    await this.writeRaw(this.buildSavePIDPacket(), true);
     this.log('✅ PID 파라미터가 로봇에 플래시 저장되었습니다.', 'success');
   }
 
+  /**
+   * Adaptive Heartbeat:
+   * Keeps the connection rock-solid without causing GATT_CONGESTED disconnections
+   */
   startHeartbeat() {
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
-    this.heartbeatTimer = setInterval(() => {
+
+    let lastSentX = 128, lastSentY = 128;
+    let lastSendTime = 0;
+
+    this.heartbeatTimer = setInterval(async () => {
       if (!this.isConnected || !this.rxChar) return;
-      const packet = this.buildRockerPacket(this.axisX, this.axisY);
-      this.writeRaw(packet);
-    }, 60);
+      const now = Date.now();
+      const isMoving = (this.axisX !== 128 || this.axisY !== 128);
+      const changed = (this.axisX !== lastSentX || this.axisY !== lastSentY);
+
+      // If moving: send at 60ms intervals or on change
+      // If idle (128, 128): send keepalive ping only every 350ms to prevent BLE buffer congestion
+      const interval = isMoving ? 60 : 350;
+
+      if (changed || (now - lastSendTime >= interval)) {
+        lastSentX = this.axisX;
+        lastSentY = this.axisY;
+        lastSendTime = now;
+        const pkt = this.buildRockerPacket(this.axisX, this.axisY);
+        await this.writeRaw(pkt);
+      }
+    }, 35);
   }
 
   stopHeartbeat() {
@@ -307,9 +328,9 @@ class MiRobotBLE extends EventTarget {
   }
 
   setDrive(x, y) {
-    this.axisX = x;
-    this.axisY = y;
-    this.dispatchEvent(new CustomEvent('drive', { detail: { x, y } }));
+    this.axisX = Math.max(0, Math.min(255, Math.round(x)));
+    this.axisY = Math.max(0, Math.min(255, Math.round(y)));
+    this.dispatchEvent(new CustomEvent('drive', { detail: { x: this.axisX, y: this.axisY } }));
   }
 
   stop() {
@@ -320,26 +341,31 @@ class MiRobotBLE extends EventTarget {
 
   async sendStop() {
     this.stop();
-    return this.writeRaw(this.buildRockerPacket(128, 128));
+    return this.writeRaw(this.buildRockerPacket(128, 128), true);
   }
 
   async playSound(soundId = 1) {
     if (!this.isConnected) return;
-    this.log(`🔊 사운드/경적 효과음(#${soundId}) 전송`, 'info');
-    return this.writeRaw(this.buildSoundPacket(soundId));
+    this.log(`🔊 사운드(#${soundId}) 전송`, 'info');
+    return this.writeRaw(this.buildSoundPacket(soundId), true);
+  }
+
+  // Alias for compatibility with piano engine
+  async playTone(noteId) {
+    return this.playSound(noteId);
   }
 
   async setVolume(vol) {
     this.volume = vol;
     if (!this.isConnected) return;
-    return this.writeRaw(this.buildVolumePacket(vol));
+    return this.writeRaw(this.buildVolumePacket(vol), true);
   }
 
   writeRaw(bytes, isPriority = false) {
-    if (!this.rxChar) return Promise.resolve();
+    if (!this.rxChar || !this.isConnected) return Promise.resolve();
 
-    // Bounded write queue: drop non-priority intermediate packets if queue is backlogged (>5)
-    if (!isPriority && this._queueDepth > 5) {
+    // Bounded write queue: drop non-priority intermediate packets if queue is backlogged (>4)
+    if (!isPriority && this._queueDepth > 4) {
       return Promise.resolve();
     }
 
@@ -348,13 +374,21 @@ class MiRobotBLE extends EventTarget {
       .then(async () => {
         if (!this.isConnected || !this.rxChar) return;
         try {
-          await this.rxChar.writeValueWithoutResponse(bytes);
+          if (typeof this.rxChar.writeValueWithoutResponse === 'function') {
+            await this.rxChar.writeValueWithoutResponse(bytes);
+          } else {
+            await this.rxChar.writeValue(bytes);
+          }
         } catch (e) {
-          await this.rxChar.writeValue(bytes);
+          try {
+            await this.rxChar.writeValue(bytes);
+          } catch (err2) {
+            console.warn('BLE write error:', err2);
+          }
         }
       })
       .catch((err) => {
-        console.warn('BLE write error:', err);
+        console.warn('Write queue error:', err);
       })
       .finally(() => {
         this._queueDepth = Math.max(0, this._queueDepth - 1);
@@ -369,6 +403,16 @@ class MiRobotBLE extends EventTarget {
     this.stopHeartbeat();
     this.axisX = 128;
     this.axisY = 128;
+
+    if (this.device && this.device.gatt) {
+      try { this.device.gatt.disconnect(); } catch (e) {}
+    }
+    this.server = null;
+    this.rxChar = null;
+    this.txChar = null;
+    this._writeQueue = Promise.resolve();
+    this._queueDepth = 0;
+
     this.dispatchEvent(new CustomEvent('connectionchange', { detail: { connected: false } }));
   }
 
@@ -378,12 +422,14 @@ class MiRobotBLE extends EventTarget {
 
     if (this.rxChar && this.isConnected) {
       try {
-        await this.writeRaw(this.buildRockerPacket(128, 128));
+        await this.writeRaw(this.buildRockerPacket(128, 128), true);
       } catch (e) {}
     }
 
-    if (this.device && this.device.gatt.connected) {
-      this.device.gatt.disconnect();
+    if (this.device && this.device.gatt) {
+      try {
+        this.device.gatt.disconnect();
+      } catch (e) {}
     }
 
     this.isConnected = false;
@@ -391,6 +437,8 @@ class MiRobotBLE extends EventTarget {
     this.server = null;
     this.rxChar = null;
     this.txChar = null;
+    this._writeQueue = Promise.resolve();
+    this._queueDepth = 0;
     this.axisX = 128;
     this.axisY = 128;
 
@@ -398,4 +446,9 @@ class MiRobotBLE extends EventTarget {
   }
 }
 
-window.MiRobotBLE = MiRobotBLE;
+if (typeof window !== 'undefined') {
+  window.MiRobotBLE = MiRobotBLE;
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = MiRobotBLE;
+}

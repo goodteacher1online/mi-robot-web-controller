@@ -7,9 +7,8 @@ class MiPianoEngine {
   constructor() {
     this.AudioCtx = window.AudioContext || window.webkitAudioContext;
     this.ctx = null;
-    this.audioBuffers = {};
-    this.isLoaded = false;
-    this.activeOscillators = {};
+    this.audioPool = {};
+    this.isUnlocked = false;
 
     // 36 Note Map (3 Octaves: C3 to B5)
     this.notes = [
@@ -54,56 +53,69 @@ class MiPianoEngine {
     ];
   }
 
-  init() {
+  unlockAudio() {
+    if (this.isUnlocked) return;
     if (!this.ctx && this.AudioCtx) {
       this.ctx = new this.AudioCtx();
     }
+    if (this.ctx && this.ctx.state === 'suspended') {
+      this.ctx.resume();
+    }
+    this.isUnlocked = true;
   }
 
   /**
    * Play Note by 1-based ID (1..36)
    */
-  async playNote(id) {
-    this.init();
-    if (this.ctx && this.ctx.state === 'suspended') {
-      await this.ctx.resume();
-    }
+  playNote(id) {
+    this.unlockAudio();
 
     const note = this.notes.find(n => n.id === id);
     if (!note) return;
 
-    // 1. Try playing extracted WAV asset
-    const audio = new Audio(`./audio/piano${id}.wav`);
-    audio.play().catch(() => {
-      // 2. Synthesizer fallback using Web Audio API
+    try {
+      const audio = new Audio(`./audio/piano${id}.wav`);
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(() => {
+          this.playSynth(note.freq);
+        });
+      }
+    } catch (e) {
       this.playSynth(note.freq);
-    });
+    }
   }
 
   playSynth(freq) {
+    this.unlockAudio();
     if (!this.ctx) return;
-    const osc = this.ctx.createOscillator();
-    const gain = this.ctx.createGain();
 
-    osc.type = 'triangle'; // Piano-like harmonic
-    osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+    try {
+      const osc = this.ctx.createOscillator();
+      const gain = this.ctx.createGain();
 
-    // Natural piano ADSR envelope
-    gain.gain.setValueAtTime(0.001, this.ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.6, this.ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 1.2);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
 
-    osc.connect(gain);
-    gain.connect(this.ctx.destination);
+      gain.gain.setValueAtTime(0.001, this.ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.7, this.ctx.currentTime + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 1.2);
 
-    osc.start();
-    osc.stop(this.ctx.currentTime + 1.2);
+      osc.connect(gain);
+      gain.connect(this.ctx.destination);
+
+      osc.start();
+      osc.stop(this.ctx.currentTime + 1.2);
+    } catch (e) {
+      console.warn('Synth error:', e);
+    }
   }
 
   /**
    * Auto melody sequencer (Demo songs)
    */
   async playMelody(notesArr, intervalMs = 280) {
+    this.unlockAudio();
     for (const noteId of notesArr) {
       this.playNote(noteId);
       await new Promise(r => setTimeout(r, intervalMs));
@@ -111,4 +123,11 @@ class MiPianoEngine {
   }
 }
 
-window.MiPianoEngine = MiPianoEngine;
+// Export under both names to guarantee compatibility
+if (typeof window !== 'undefined') {
+  window.PianoEngine = MiPianoEngine;
+  window.MiPianoEngine = MiPianoEngine;
+}
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = MiPianoEngine;
+}
