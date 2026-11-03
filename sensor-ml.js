@@ -1,14 +1,59 @@
 /**
- * Lightweight Sensor Pattern Machine Learning (CreateAI / Teachable Style)
- * Uses Distance-Weighted k-Nearest Neighbors (k-NN) or Adaptive-K
+ * Sensor Pattern Machine Learning Engine (MakeCode / Teachable Machine Style)
+ * Supports dynamic user classes, data collection, model training & robot action triggers
  */
 
 class SensorPatternML {
   constructor() {
-    this.classes = ['안정 상태 (Normal)', '전방 기울임 (Tilt Front)', '충격/넘어짐 (Impact)'];
-    this.dataset = []; // Array of { className, features: [...] }
+    // Default initial classes
+    this.classes = [
+      { id: 'c1', name: '평지 안정 (Normal)', action: 'none' },
+      { id: 'c2', name: '앞으로 기울임 (Tilt Front)', action: 'calibrate' },
+      { id: 'c3', name: '충격 / 넘어짐 (Impact)', action: 'horn' }
+    ];
+    this.dataset = []; // Array of { classId, className, features: [...] }
     this.k = 3;
     this.isTrained = false;
+    this.modelInfo = null;
+  }
+
+  // Add custom user class
+  addClass(name, action = 'none') {
+    const trimmed = name.trim();
+    if (!trimmed) return null;
+    const id = 'c_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+    const newClass = { id, name: trimmed, action };
+    this.classes.push(newClass);
+    return newClass;
+  }
+
+  // Remove class and its recorded samples
+  removeClass(idOrName) {
+    this.classes = this.classes.filter(c => c.id !== idOrName && c.name !== idOrName);
+    this.dataset = this.dataset.filter(d => d.classId !== idOrName && d.className !== idOrName);
+    this._recheckTrainedState();
+  }
+
+  // Rename a class
+  renameClass(id, newName) {
+    const target = this.classes.find(c => c.id === id);
+    if (target) {
+      target.name = newName;
+      this.dataset.forEach(d => {
+        if (d.classId === id) d.className = newName;
+      });
+    }
+  }
+
+  // Set mapped action (e.g. 'none', 'stop', 'horn', 'melody', 'calibrate', 'forward', 'backward')
+  setAction(id, action) {
+    const target = this.classes.find(c => c.id === id);
+    if (target) target.action = action;
+  }
+
+  getAction(className) {
+    const target = this.classes.find(c => c.name === className);
+    return target ? target.action : 'none';
   }
 
   extractFeatures(sampleWindow) {
@@ -38,32 +83,60 @@ class SensorPatternML {
     return [avgPitch, avgRoll, maxAbsPitch, maxAbsRoll, Math.sqrt(varPitch), Math.sqrt(varRoll)];
   }
 
-  _updateTrainedStatus() {
-    const uniqueClasses = new Set(this.dataset.map(d => d.className));
-    this.isTrained = uniqueClasses.size >= 2;
+  addExample(classNameOrId, features) {
+    let cls = this.classes.find(c => c.id === classNameOrId || c.name === classNameOrId);
+    if (!cls) {
+      cls = this.addClass(classNameOrId);
+    }
+    this.dataset.push({
+      classId: cls.id,
+      className: cls.name,
+      features: Array.from(features)
+    });
   }
 
-  addExample(className, features) {
-    this.dataset.push({ className, features: Array.from(features) });
-    this._updateTrainedStatus();
+  getExampleCount(idOrName) {
+    return this.dataset.filter(d => d.classId === idOrName || d.className === idOrName).length;
   }
 
-  clearClass(className) {
-    this.dataset = this.dataset.filter(d => d.className !== className);
-    this._updateTrainedStatus();
+  clearClass(idOrName) {
+    this.dataset = this.dataset.filter(d => d.classId !== idOrName && d.className !== idOrName);
+    this._recheckTrainedState();
   }
 
   clearAll() {
     this.dataset = [];
     this.isTrained = false;
+    this.modelInfo = null;
   }
 
-  getExampleCount(className) {
-    return this.dataset.filter(d => d.className === className).length;
+  _recheckTrainedState() {
+    const classesWithData = new Set(this.dataset.map(d => d.classId));
+    if (classesWithData.size < 2) {
+      this.isTrained = false;
+      this.modelInfo = null;
+    }
   }
 
-  // Feature weighting to prevent higher-range features from overwhelming smaller ones
-  // [avgPitch(1.0), avgRoll(1.0), maxPitch(0.5), maxRoll(0.5), stdPitch(2.0), stdRoll(2.0)]
+  /**
+   * Explicit Training Step (Compile Model)
+   */
+  train() {
+    const classesWithData = new Set(this.dataset.map(d => d.classId));
+    if (classesWithData.size < 2) {
+      throw new Error('학습을 위해 서로 다른 클래스 2개 이상에 각각 샘플을 1개 이상 수집해 주세요.');
+    }
+
+    this.isTrained = true;
+    this.modelInfo = {
+      trainedAt: new Date().toLocaleTimeString(),
+      sampleCount: this.dataset.length,
+      classCount: classesWithData.size
+    };
+    return this.modelInfo;
+  }
+
+  // Feature weighting
   _distance(a, b) {
     const weights = [1.0, 1.0, 0.5, 0.5, 2.0, 2.0];
     let sum = 0;
@@ -75,30 +148,29 @@ class SensorPatternML {
   }
 
   /**
-   * Distance-Weighted Prediction: Closer neighbors contribute exponentially more weight
+   * Distance-Weighted k-NN Prediction
    */
   predict(features) {
     if (!this.isTrained || this.dataset.length === 0) {
-      return { className: '학습 필요', confidence: 0 };
+      return { className: '학습 필요', confidence: 0, action: 'none' };
     }
 
     const distances = this.dataset.map(item => ({
+      classId: item.classId,
       className: item.className,
       dist: this._distance(features, item.features)
     }));
 
     distances.sort((a, b) => a.dist - b.dist);
 
-    // If exact match or very close, return directly
     if (distances[0].dist < 0.0001) {
-      return { className: distances[0].className, confidence: 100 };
+      const act = this.getAction(distances[0].className);
+      return { className: distances[0].className, confidence: 100, action: act };
     }
 
-    // Use top-K (adaptive up to k=3 or dataset size)
     const activeK = Math.min(this.k, distances.length);
     const kNearest = distances.slice(0, activeK);
 
-    // Distance-weighted voting: weight = 1 / (dist + epsilon)
     const weights = {};
     let totalWeight = 0;
 
@@ -118,7 +190,8 @@ class SensorPatternML {
     }
 
     const confidence = totalWeight > 0 ? Math.round((maxWeight / totalWeight) * 100) : 100;
-    return { className: topClass, confidence };
+    const action = this.getAction(topClass);
+    return { className: topClass, confidence, action };
   }
 }
 

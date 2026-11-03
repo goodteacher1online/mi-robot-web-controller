@@ -175,6 +175,7 @@ for (let i = 0; i < 15; i++) {
   classifier.addExample('Tilt', [3.5 + 0.1 * i, 0.5, 3.8, 0.6, 0.2, 0.1]);
   classifier.addExample('Impact', [15.0 + i, 2.0, 18.0, 3.0, 4.0, 1.5]);
 }
+classifier.train();
 
 const testNormal = classifier.predict([0.01, 0.02, 0.05, 0.04, 0.01, 0.01]);
 const testTilt = classifier.predict([3.6, 0.5, 3.8, 0.6, 0.2, 0.1]);

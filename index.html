@@ -1,797 +1,1299 @@
-<!DOCTYPE html>
-<html lang="ko">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <meta name="theme-color" content="#090d16">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <title>Mi Robot Web Studio Pro</title>
-  <link rel="manifest" href="manifest.json">
-  <style>
-    :root {
-      --bg: #090d16;
-      --card-bg: #121824;
-      --card-border: #232d3f;
-      --accent: #ff6b00;
-      --accent-glow: rgba(255, 107, 0, 0.4);
-      --cyan: #00d2ff;
-      --cyan-glow: rgba(0, 210, 255, 0.35);
-      --purple: #b388ff;
-      --success: #2ea043;
-      --danger: #ff334b;
-      --warn: #e3b341;
-      --text: #f0f6fc;
-      --text-dim: #8b949e;
-      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-    }
-
-    * {
-      box-sizing: border-box;
-      user-select: none;
-      -webkit-user-select: none;
-      touch-action: manipulation;
-      margin: 0;
-      padding: 0;
-    }
-
-    body {
-      background: var(--bg);
-      color: var(--text);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      padding-bottom: env(safe-area-inset-bottom, 20px);
-    }
-
-    header {
-      background: var(--card-bg);
-      padding: 10px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      border-bottom: 1px solid var(--card-border);
-      position: sticky;
-      top: 0;
-      z-index: 100;
-    }
-
-    .title-box { display: flex; align-items: center; gap: 8px; }
-    .robot-name-wrap { display: flex; align-items: center; gap: 4px; }
-    .robot-name-display { font-size: 1.05rem; font-weight: 800; cursor: pointer; }
-    .btn-rename { background: none; border: none; color: var(--cyan); cursor: pointer; font-size: 0.8rem; }
-
-    .badge-group { display: flex; align-items: center; gap: 6px; }
-    .status-badge {
-      display: inline-flex; align-items: center; gap: 5px; padding: 4px 10px;
-      border-radius: 20px; font-size: 0.72rem; font-weight: 700; background: #1c2433;
-      color: var(--text-dim); border: 1px solid var(--card-border);
-    }
-    .status-badge.connected { background: rgba(46, 160, 67, 0.15); color: #3fb950; border-color: rgba(46, 160, 67, 0.4); }
-    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
-
-    /* Navigation Studio Tabs */
-    .studio-tabs {
-      display: flex;
-      background: #06090f;
-      padding: 4px;
-      gap: 4px;
-      border-bottom: 1px solid var(--card-border);
-      overflow-x: auto;
-      scrollbar-width: none;
-    }
-    .studio-tabs::-webkit-scrollbar { display: none; }
-    .studio-tab-btn {
-      flex: 1;
-      min-width: 80px;
-      padding: 8px 10px;
-      background: transparent;
-      border: none;
-      color: var(--text-dim);
-      font-size: 0.78rem;
-      font-weight: 700;
-      border-radius: 8px;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 5px;
-      white-space: nowrap;
-      transition: all 0.15s;
-    }
-    .studio-tab-btn.active {
-      background: var(--card-bg);
-      color: var(--cyan);
-      box-shadow: 0 2px 8px rgba(0,0,0,0.5);
-    }
-
-    main {
-      flex: 1;
-      padding: 12px 14px;
-      max-width: 660px;
-      margin: 0 auto;
-      width: 100%;
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-    }
-
-    .card {
-      background: var(--card-bg);
-      border: 1px solid var(--card-border);
-      border-radius: 16px;
-      padding: 14px;
-      box-shadow: 0 8px 24px rgba(0,0,0,0.3);
-    }
-
-    /* Diagnostics */
-    .diagnostic-panel {
-      display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 12px;
-      background: #090d16; border: 1px solid var(--card-border); border-radius: 10px; align-items: center;
-    }
-    .diag-label { font-size: 0.72rem; font-weight: 700; color: var(--text-dim); }
-    .diag-chip {
-      padding: 2px 6px; border-radius: 5px; font-size: 0.68rem; font-weight: 600;
-      background: #161c28; border: 1px solid var(--card-border); color: var(--text-dim);
-    }
-    .diag-chip.ok { color: #3fb950; border-color: rgba(46, 160, 67, 0.3); }
-    .diag-chip.disabled { color: #8b949e; opacity: 0.5; text-decoration: line-through; }
-
-    /* Connect Button */
-    .btn-connect {
-      width: 100%; padding: 13px; border: none; border-radius: 12px; font-size: 1rem;
-      font-weight: 800; cursor: pointer; display: flex; align-items: center; justify-content: center;
-      gap: 8px; background: linear-gradient(135deg, #ff7a00, #ff3b00); color: white;
-      box-shadow: 0 4px 16px var(--accent-glow);
-    }
-    .btn-connect.connected { background: #1c2433; color: var(--danger); border: 1px solid rgba(255, 51, 75, 0.4); box-shadow: none; }
-
-    /* Telemetry HUD */
-    .hud-grid {
-      display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
-      background: #090d16; padding: 8px; border-radius: 10px; border: 1px solid var(--card-border); text-align: center;
-    }
-    .hud-label { font-size: 0.65rem; color: var(--text-dim); font-weight: 600; }
-    .hud-val { font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; color: var(--cyan); }
-
-    /* Canvas Chart */
-    .chart-container {
-      width: 100%;
-      height: 140px;
-      background: #06090f;
-      border: 1px solid var(--card-border);
-      border-radius: 10px;
-      position: relative;
-    }
-    canvas { width: 100%; height: 100%; display: block; }
-
-    /* Tab Sections */
-    .tab-section { display: none; flex-direction: column; gap: 12px; }
-    .tab-section.active { display: flex; }
-
-    /* Joystick Area */
-    .joystick-container { display: flex; justify-content: center; align-items: center; padding: 4px 0; touch-action: none; }
-    .joystick-base {
-      width: 210px; height: 210px; border-radius: 50%;
-      background: radial-gradient(circle, #19202e 0%, #090d16 100%);
-      border: 2px solid var(--card-border); position: relative; touch-action: none;
-    }
-    .joystick-thumb {
-      width: 72px; height: 72px; border-radius: 50%;
-      background: radial-gradient(circle at 35% 35%, #ff8c00, #ff4500);
-      position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-      box-shadow: 0 4px 16px rgba(255, 106, 0, 0.6); pointer-events: none;
-    }
-
-    /* D-PAD */
-    .dpad-container {
-      display: grid; grid-template-columns: repeat(3, 80px); grid-template-rows: repeat(3, 80px);
-      gap: 8px; justify-content: center; margin: 4px 0; touch-action: none;
-    }
-    .dpad-btn {
-      background: #1a2230; border: 1px solid var(--card-border); color: white;
-      font-size: 1.5rem; border-radius: 16px; display: flex; align-items: center; justify-content: center;
-      cursor: pointer; touch-action: none;
-    }
-    .dpad-btn:active, .dpad-btn.pressed { background: var(--accent); transform: scale(0.93); }
-
-    /* Piano Styles */
-    .piano-wrapper {
-      position: relative;
-      display: flex;
-      justify-content: center;
-      height: 160px;
-      background: #090d16;
-      border: 1px solid var(--card-border);
-      border-radius: 12px;
-      padding: 10px 4px 4px 4px;
-      overflow-x: auto;
-      touch-action: none;
-    }
-    .piano-keys { display: flex; position: relative; }
-    .white-key {
-      width: 38px; height: 140px; background: white; border: 1px solid #ccc;
-      border-radius: 0 0 6px 6px; cursor: pointer; display: flex; align-items: flex-end;
-      justify-content: center; padding-bottom: 6px; color: #333; font-size: 0.7rem; font-weight: 700;
-    }
-    .white-key:active, .white-key.active { background: #e0e0e0; transform: translateY(2px); }
-    .black-key {
-      width: 24px; height: 88px; background: #1a1a1a; position: absolute;
-      border-radius: 0 0 4px 4px; cursor: pointer; z-index: 2; margin-left: -12px;
-      color: #aaa; font-size: 0.6rem; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 4px;
-    }
-    .black-key:active, .black-key.active { background: var(--accent); color: white; }
-
-    /* ML Studio Styles */
-    .ml-class-row {
-      display: flex; align-items: center; justify-content: space-between;
-      background: #090d16; padding: 10px; border-radius: 10px; border: 1px solid var(--card-border);
-    }
-    .btn-sample {
-      padding: 8px 14px; background: #1c2433; border: 1px solid var(--cyan);
-      color: var(--cyan); border-radius: 8px; font-weight: 700; cursor: pointer; font-size: 0.8rem;
-    }
-    .btn-sample:active { background: var(--cyan); color: #000; }
-
-    /* Vision AI */
-    .camera-box {
-      width: 100%; height: 220px; background: #000; border-radius: 12px;
-      overflow: hidden; position: relative; display: flex; align-items: center; justify-content: center;
-    }
-    #visionVideo { display: none; }
-    #visionCanvas { width: 100%; height: 100%; object-fit: cover; }
-
-    /* Controls */
-    .btn-action {
-      padding: 10px 14px; border-radius: 10px; border: none; font-weight: 700;
-      cursor: pointer; background: #1c2433; color: var(--text); border: 1px solid var(--card-border);
-    }
-    .btn-action:active { background: var(--cyan); color: #000; }
-    .btn-action.accent { background: var(--accent); color: white; border: none; }
-
-    /* Sliders */
-    .setting-row {
-      display: flex; align-items: center; justify-content: space-between;
-      padding-top: 8px; border-top: 1px solid var(--card-border);
-    }
-    .setting-label { font-size: 0.8rem; font-weight: 600; color: var(--text-dim); }
-    .slider { width: 55%; accent-color: var(--accent); }
-
-    .stop-btn {
-      width: 100%; padding: 12px; background: #251216; border: 1px solid rgba(255, 51, 75, 0.4);
-      color: var(--danger); font-size: 0.95rem; font-weight: 800; border-radius: 12px; cursor: pointer;
-    }
-    .stop-btn:active { background: var(--danger); color: white; }
-
-    .log-box {
-      font-family: var(--font-mono); font-size: 0.7rem; background: #06090f;
-      border: 1px solid var(--card-border); border-radius: 8px; padding: 6px 10px; height: 70px;
-      overflow-y: auto; color: var(--text-dim);
-    }
-    .log-line.success { color: #3fb950; }
-    .log-line.error { color: #f85149; }
-    .log-line.warn { color: #d29922; }
-
-    /* Modal */
-    .modal-overlay {
-      position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7);
-      display: flex; align-items: center; justify-content: center; z-index: 1000; padding: 20px;
-    }
-    .modal-card {
-      background: var(--card-bg); border: 1px solid var(--card-border);
-      border-radius: 14px; padding: 18px; max-width: 340px; width: 100%; display: flex; flex-direction: column; gap: 10px;
-    }
-    .modal-input { background: #090d16; border: 1px solid var(--card-border); color: white; padding: 8px; border-radius: 6px; font-size: 1rem; }
-  </style>
-</head>
-<body>
-  <header>
-    <div class="title-box">
-      <span style="font-size: 1.3rem;">🤖</span>
-      <div>
-        <div class="robot-name-wrap">
-          <span id="robotNameTitle" class="robot-name-display" onclick="openRenameModal()">Mi Robot</span>
-          <button class="btn-rename" onclick="openRenameModal()">✏️</button>
-        </div>
-        <div style="font-size: 0.65rem; color: var(--text-dim);">Xiaomi Mitu Web Studio Pro</div>
-      </div>
-    </div>
-    <div class="badge-group">
-      <div id="gamepadBadge" class="status-badge" style="display: none;"><span>🎮 패드</span></div>
-      <div id="statusBadge" class="status-badge">
-        <span class="status-dot"></span>
-        <span id="statusText">연결 대기</span>
-      </div>
-    </div>
-  </header>
-
-  <!-- Navigation Studio Tabs -->
-  <nav class="studio-tabs">
-    <button class="studio-tab-btn active" onclick="switchStudioTab('control')">🎮 컨트롤러</button>
-    <button class="studio-tab-btn" onclick="switchStudioTab('balance')">⚖️ 자가 밸런싱</button>
-    <button class="studio-tab-btn" onclick="switchStudioTab('piano')">🎹 피아노 연주</button>
-    <button class="studio-tab-btn" onclick="switchStudioTab('ml')">🧠 패턴 학습</button>
-    <button class="studio-tab-btn" onclick="switchStudioTab('vision')">👁️ AI 비전</button>
-  </nav>
-
-  <main>
-    <!-- Device Diagnostic Bar -->
-    <div class="diagnostic-panel" id="diagPanel">
-      <span class="diag-label">기기 환경:</span>
-      <span id="diagBle" class="diag-chip">BLE</span>
-      <span id="diagAudio" class="diag-chip">오디오</span>
-      <span id="diagCamera" class="diag-chip">카메라</span>
-      <span id="diagGamepad" class="diag-chip">게임패드</span>
-      <span id="diagWakeLock" class="diag-chip">화면유지</span>
-    </div>
-
-    <!-- Connect Button -->
-    <button id="btnConnect" class="btn-connect">
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m7 7 10 10-5 5V2l5 5L7 17"></path></svg>
-      <span id="btnConnectLabel">로봇 블루투스 연결</span>
-    </button>
-
-    <!-- Telemetry HUD -->
-    <div class="hud-grid">
-      <div class="hud-item"><span class="hud-label">속도(X/Y)</span><span id="hudDrive" class="hud-val">0/0</span></div>
-      <div class="hud-item"><span class="hud-label">기울기(Pitch)</span><span id="hudPitch" class="hud-val">0.0°</span></div>
-      <div class="hud-item"><span class="hud-label">볼륨</span><span id="hudVolume" class="hud-val">10</span></div>
-      <div class="hud-item"><span class="hud-label">입력원</span><span id="hudInput" class="hud-val">터치</span></div>
-    </div>
-
-    <!-- ================= TAB 1: CONTROLLER ================= -->
-    <section id="tabSecControl" class="tab-section active">
-      <div class="card">
-        <div style="display:flex; justify-content:center; gap:8px; margin-bottom:10px;">
-          <button class="btn-action" onclick="setDriveMode('joystick')">조이스틱</button>
-          <button class="btn-action" onclick="setDriveMode('dpad')">방향 패드</button>
-        </div>
-
-        <div id="joystickView" class="joystick-container">
-          <div id="joystickBase" class="joystick-base">
-            <div id="joystickThumb" class="joystick-thumb"></div>
-          </div>
-        </div>
-
-        <div id="dpadView" class="dpad-container" style="display: none;">
-          <div></div><button class="dpad-btn" data-dir="F">▲</button><div></div>
-          <button class="dpad-btn" data-dir="L">◀</button><div class="dpad-center"></div><button class="dpad-btn" data-dir="R">▶</button>
-          <div></div><button class="dpad-btn" data-dir="B">▼</button><div></div>
-        </div>
-
-        <div class="setting-row">
-          <span class="setting-label">최대 속도</span>
-          <input type="range" id="speedSlider" class="slider" min="30" max="100" value="85">
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= TAB 2: SELF BALANCING & OSCILLOSCOPE ================= -->
-    <section id="tabSecBalance" class="tab-section">
-      <div class="card">
-        <h3 style="font-size:0.95rem; margin-bottom:8px;">📈 실시간 자이로 센서 오실로스코프</h3>
-        <div class="chart-container">
-          <canvas id="telemetryChart"></canvas>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-top:10px;">
-          <button class="btn-action accent" onclick="robot.calibrateBalance()">⚖️ 수평 0점 캘리브레이션</button>
-          <button class="btn-action" onclick="applyPIDGains()">⚙️ PID 게인 저장</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <h3 style="font-size:0.9rem; margin-bottom:8px;">⚙️ 공식 자립 밸런스 PID 게인 미세조정</h3>
-        <div class="setting-row"><span class="setting-label">각도 P (복원력)</span><input type="range" id="pidAngleP" class="slider" min="10" max="120" value="50"></div>
-        <div class="setting-row"><span class="setting-label">각도 D (감쇠력)</span><input type="range" id="pidAngleD" class="slider" min="5" max="80" value="30"></div>
-        <div class="setting-row"><span class="setting-label">속도 P (위치유지)</span><input type="range" id="pidSpeedP" class="slider" min="10" max="100" value="40"></div>
-        <div class="setting-row"><span class="setting-label">속도 I (오차누적)</span><input type="range" id="pidSpeedI" class="slider" min="0" max="50" value="20"></div>
-      </div>
-    </section>
-
-    <!-- ================= TAB 3: 36-KEY PIANO ================= -->
-    <section id="tabSecPiano" class="tab-section">
-      <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-          <h3 style="font-size:0.95rem;">🎹 도레미파솔라시도 건반 연주</h3>
-          <button class="btn-action" onclick="playDemoSong()">🎶 데모 멜로디 재생</button>
-        </div>
-        
-        <div class="piano-wrapper">
-          <div class="piano-keys" id="pianoKeyboard"></div>
-        </div>
-        <p style="font-size:0.7rem; color:var(--text-dim); text-align:center; margin-top:8px;">
-          PC 키보드: A, S, D, F, G, H, J, K (도레미파솔라시도)
-        </p>
-      </div>
-    </section>
-
-    <!-- ================= TAB 4: SENSOR MACHINE LEARNING (CreateAI) ================= -->
-    <section id="tabSecML" class="tab-section">
-      <div class="card">
-        <h3 style="font-size:0.95rem; margin-bottom:6px;">🧠 센서 패턴 머신러닝 (CreateAI)</h3>
-        <p style="font-size:0.75rem; color:var(--text-dim); margin-bottom:10px;">
-          센서 상태를 버튼을 눌러 샘플링한 뒤 즉시 지도학습합니다.
-        </p>
-
-        <div style="display:flex; flex-direction:column; gap:8px;">
-          <div class="ml-class-row">
-            <div><strong>클래스 1: 평지 안정</strong><div id="countNormal" style="font-size:0.7rem; color:var(--text-dim);">샘플: 0개</div></div>
-            <button class="btn-sample" onmousedown="startSampling('안정 상태 (Normal)')" onmouseup="stopSampling()">+ 샘플 기록</button>
-          </div>
-          <div class="ml-class-row">
-            <div><strong>클래스 2: 전방 기울임</strong><div id="countTilt" style="font-size:0.7rem; color:var(--text-dim);">샘플: 0개</div></div>
-            <button class="btn-sample" onmousedown="startSampling('전방 기울임 (Tilt Front)')" onmouseup="stopSampling()">+ 샘플 기록</button>
-          </div>
-          <div class="ml-class-row">
-            <div><strong>클래스 3: 충격 / 넘어짐</strong><div id="countImpact" style="font-size:0.7rem; color:var(--text-dim);">샘플: 0개</div></div>
-            <button class="btn-sample" onmousedown="startSampling('충격/넘어짐 (Impact)')" onmouseup="stopSampling()">+ 샘플 기록</button>
-          </div>
-        </div>
-
-        <div style="margin-top:12px; padding:10px; background:#090d16; border-radius:10px; border:1px solid var(--card-border);">
-          <div style="font-size:0.75rem; color:var(--text-dim);">실시간 AI 추론 결과:</div>
-          <div id="mlPrediction" style="font-size:1.1rem; font-weight:800; color:var(--cyan); margin-top:4px;">학습 대기 중...</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ================= TAB 5: VISION AI (MediaPipe) ================= -->
-    <section id="tabSecVision" class="tab-section">
-      <div class="card">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-          <h3 style="font-size:0.95rem;">👁️ 핸드 제스처 비전 제어</h3>
-          <button id="btnToggleVision" class="btn-action accent" onclick="toggleVisionAI()">카메라 켜기</button>
-        </div>
-        <div class="camera-box">
-          <video id="visionVideo" playsinline autoplay></video>
-          <canvas id="visionCanvas"></canvas>
-        </div>
-        <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:0.8rem;">
-          <span style="color:var(--text-dim);">인식된 손동작:</span>
-          <strong id="visionGesture" style="color:var(--cyan);">정지</strong>
-        </div>
-      </div>
-    </section>
-
-    <!-- Emergency Stop -->
-    <button id="btnEmergencyStop" class="stop-btn">🛑 비상 정지 (EMERGENCY STOP)</button>
-
-    <!-- Logs -->
-    <div class="card" style="padding: 10px;">
-      <div id="logConsole" class="log-box"></div>
-    </div>
-  </main>
-
-  <!-- Modal -->
-  <div id="renameModal" class="modal-overlay" style="display: none;">
-    <div class="modal-card">
-      <h3 style="font-size:1rem;">✏️ 로봇 별칭(이름) 설정</h3>
-      <input type="text" id="renameInput" class="modal-input" maxlength="20" placeholder="예: 탐사로봇 1호">
-      <div style="display:flex; justify-content:flex-end; gap:8px;">
-        <button class="btn-action" onclick="closeRenameModal()">취소</button>
-        <button class="btn-action accent" onclick="saveRenameModal()">저장</button>
-      </div>
-    </div>
-  </div>
-
-  <script src="device-capability.js"></script>
-  <script src="robot-alias.js"></script>
-  <script src="robot-ble.js"></script>
-  <script src="piano-engine.js"></script>
-  <script src="sensor-ml.js"></script>
-  <script src="vision-ai.js"></script>
-
-  <script>
-    const detector = new DeviceCapabilityDetector();
-    const aliasMgr = new RobotAliasManager();
-    const robot = new MiRobotBLE();
-    const piano = new MiPianoEngine();
-    const sensorML = new SensorPatternML();
-    const visionAI = new VisionHandController();
-
-    window.robot = robot;
-    window.piano = piano;
-
-    // Elements
-    const btnConnect = document.getElementById('btnConnect');
-    const statusBadge = document.getElementById('statusBadge');
-    const statusText = document.getElementById('statusText');
-    const logConsole = document.getElementById('logConsole');
-    const hudDrive = document.getElementById('hudDrive');
-    const hudPitch = document.getElementById('hudPitch');
-    const hudVolume = document.getElementById('hudVolume');
-    const hudInput = document.getElementById('hudInput');
-
-    // 1. Diagnostics Probe
-    const updateChip = (id, ok) => {
-      const el = document.getElementById(id);
-      if (el) el.className = `diag-chip ${ok ? 'ok' : 'disabled'}`;
-    };
-    updateChip('diagBle', detector.isSupported('bluetooth'));
-    updateChip('diagAudio', detector.isSupported('webAudio'));
-    updateChip('diagCamera', detector.isSupported('camera'));
-    updateChip('diagGamepad', detector.isSupported('gamepad'));
-    updateChip('diagWakeLock', detector.isSupported('wakeLock'));
-
-    if (!detector.isSupported('bluetooth')) {
-      btnConnect.disabled = true;
-      document.getElementById('btnConnectLabel').textContent = 'BLE 미지원 브라우저 (Chrome 필요)';
-    }
-
-    // 2. Tab Navigation
-    function setDriveMode(mode) {
-      document.getElementById('joystickView').style.display = (mode === 'joystick') ? 'flex' : 'none';
-      document.getElementById('dpadView').style.display = (mode === 'dpad') ? 'grid' : 'none';
-      robot.stop();
-    }
-
-    function switchStudioTab(tabId, btnEl) {
-      document.querySelectorAll('.studio-tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
-      
-      const targetBtn = btnEl || (typeof event !== 'undefined' ? event?.currentTarget : null) || document.querySelector('.studio-tab-btn[onclick*="' + tabId + '"]');
-      if (targetBtn && targetBtn.classList) targetBtn.classList.add('active');
-
-      // Release camera hardware immediately when navigating away from Vision tab
-      if (tabId !== 'vision' && visionActive) {
-        visionAI.stop();
-        visionActive = false;
-        const vBtn = document.getElementById('btnToggleVision');
-        if (vBtn) {
-          vBtn.textContent = '카메라 켜기';
-          vBtn.className = 'btn-action accent';
-        }
-      }
-
-      const targetSec = {
-        control: 'tabSecControl',
-        balance: 'tabSecBalance',
-        piano: 'tabSecPiano',
-        ml: 'tabSecML',
-        vision: 'tabSecVision'
-      }[tabId];
-
-      if (targetSec) document.getElementById(targetSec).classList.add('active');
-    }
-
-    // Auto-release camera when page is hidden or minimized
-    document.addEventListener('visibilitychange', () => {
-      if (document.hidden && visionActive) {
-        visionAI.stop();
-        visionActive = false;
-        const vBtn = document.getElementById('btnToggleVision');
-        if (vBtn) {
-          vBtn.textContent = '카메라 켜기';
-          vBtn.className = 'btn-action accent';
-        }
-      }
-    });
-
-    // 3. Rename Modal
-    function openRenameModal() {
-      document.getElementById('renameInput').value = aliasMgr.getName(robot.device?.id, 'Mi Robot');
-      document.getElementById('renameModal').style.display = 'flex';
-    }
-    function closeRenameModal() { document.getElementById('renameModal').style.display = 'none'; }
-    function saveRenameModal() {
-      aliasMgr.setName(robot.device?.id || 'default', document.getElementById('renameInput').value);
-      document.getElementById('robotNameTitle').textContent = aliasMgr.getName(robot.device?.id, 'Mi Robot');
-      closeRenameModal();
-    }
-
-    // 4. Oscilloscope Canvas Chart
-    const canvas = document.getElementById('telemetryChart');
-    const ctx = canvas.getContext('2d');
-    const chartHistory = [];
-    function drawOscilloscope() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = '#232d3f';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, canvas.height / 2);
-      ctx.lineTo(canvas.width, canvas.height / 2);
-      ctx.stroke();
-
-      if (chartHistory.length < 2) return;
-      ctx.strokeStyle = '#00d2ff';
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      const step = canvas.width / 50;
-      for (let i = 0; i < chartHistory.length; i++) {
-        const x = i * step;
-        const y = canvas.height / 2 - (chartHistory[i] * 2);
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-      ctx.stroke();
-    }
-
-    // 5. Build Piano Keys (Octave C4 to B5)
-    function buildPiano() {
-      const container = document.getElementById('pianoKeyboard');
-      container.innerHTML = '';
-      const notes = piano.notes.slice(12, 24); // C4 to B4 (1 Octave full)
-      notes.forEach((note) => {
-        if (!note.isSharp) {
-          const wk = document.createElement('div');
-          wk.className = 'white-key';
-          wk.textContent = note.name;
-          wk.onpointerdown = () => { piano.playNote(note.id); wk.classList.add('active'); };
-          wk.onpointerup = () => wk.classList.remove('active');
-          container.appendChild(wk);
-        } else {
-          const bk = document.createElement('div');
-          bk.className = 'black-key';
-          bk.textContent = note.name;
-          bk.style.left = `${(container.children.length * 38) - 12}px`;
-          bk.onpointerdown = () => { piano.playNote(note.id); bk.classList.add('active'); };
-          bk.onpointerup = () => bk.classList.remove('active');
-          container.appendChild(bk);
-        }
-      });
-    }
-    buildPiano();
-
-    function playDemoSong() {
-      // School Bell Melody: Sol Sol La La Sol Sol Mi (20, 20, 22, 22, 20, 20, 17)
-      piano.playMelody([20, 20, 22, 22, 20, 20, 17, 20, 20, 17, 17, 15], 320);
-    }
-
-    // 6. Sensor Pattern Sampling & Inference
-    let samplingTimer = null;
-    let rollingSensorWindow = [];
-    function startSampling(className) {
-      samplingTimer = setInterval(() => {
-        const sample = { pitch: robot.telemetry.pitch, roll: robot.telemetry.roll };
-        rollingSensorWindow.push(sample);
-        if (rollingSensorWindow.length > 10) rollingSensorWindow.shift();
-        const features = sensorML.extractFeatures(rollingSensorWindow);
-        sensorML.addExample(className, features);
-        updateMLCounts();
-      }, 50);
-    }
-    function stopSampling() { clearInterval(samplingTimer); }
-    function updateMLCounts() {
-      document.getElementById('countNormal').textContent = `샘플: ${sensorML.getExampleCount('안정 상태 (Normal)')}개`;
-      document.getElementById('countTilt').textContent = `샘플: ${sensorML.getExampleCount('전방 기울임 (Tilt Front)')}개`;
-      document.getElementById('countImpact').textContent = `샘플: ${sensorML.getExampleCount('충격/넘어짐 (Impact)')}개`;
-    }
-
-    // 7. Vision AI Integration
-    let visionActive = false;
-    async function toggleVisionAI() {
-      const btn = document.getElementById('btnToggleVision');
-      if (!visionActive) {
-        try {
-          await visionAI.init(document.getElementById('visionVideo'), document.getElementById('visionCanvas'));
-          await visionAI.start();
-          visionActive = true;
-          btn.textContent = '카메라 끄기';
-          btn.className = 'btn-action';
-        } catch (e) { alert(e.message); }
-      } else {
-        visionAI.stop();
-        visionActive = false;
-        btn.textContent = '카메라 켜기';
-        btn.className = 'btn-action accent';
-      }
-    }
-    visionAI.addEventListener('gesture', (e) => {
-      document.getElementById('visionGesture').textContent = `${e.detail.command} (신뢰도: ${e.detail.count})`;
-      if (visionActive && robot.isConnected) {
-        robot.setDrive(e.detail.driveX, e.detail.driveY);
-      }
-    });
-
-    // 8. Robot Events
-    robot.addEventListener('log', (e) => {
-      const line = document.createElement('div');
-      line.className = `log-line ${e.detail.type}`;
-      line.textContent = `[${new Date(e.detail.timestamp).toLocaleTimeString()}] ${e.detail.msg}`;
-      logConsole.appendChild(line);
-      logConsole.scrollTop = logConsole.scrollHeight;
-    });
-
-    robot.addEventListener('connectionchange', (e) => {
-      if (e.detail.connected) {
-        statusBadge.className = 'status-badge connected';
-        statusText.textContent = '연결됨';
-        btnConnect.className = 'btn-connect connected';
-        btnConnect.innerHTML = '<span>연결 해제</span>';
-      } else {
-        statusBadge.className = 'status-badge';
-        statusText.textContent = '연결 대기';
-        btnConnect.className = 'btn-connect';
-        btnConnect.innerHTML = '<span>로봇 블루투스 연결</span>';
-      }
-    });
-
-    robot.addEventListener('telemetry', (e) => {
-      hudPitch.textContent = `${e.detail.pitch.toFixed(1)}°`;
-      chartHistory.push(e.detail.pitch);
-      if (chartHistory.length > 50) chartHistory.shift();
-      drawOscilloscope();
-
-      // Realtime ML Prediction
-      rollingSensorWindow.push({ pitch: e.detail.pitch, roll: e.detail.roll });
-      if (rollingSensorWindow.length > 10) rollingSensorWindow.shift();
-      const pred = sensorML.predict(sensorML.extractFeatures(rollingSensorWindow));
-      if (sensorML.isTrained) {
-        document.getElementById('mlPrediction').textContent = `${pred.className} (${pred.confidence}%)`;
-      }
-    });
-
-    btnConnect.addEventListener('click', async () => {
-      if (robot.isConnected) await robot.disconnect();
-      else try { await robot.connect(); } catch (e) {}
-    });
-
-    function applyPIDGains() {
-      const p = parseInt(document.getElementById('pidAngleP').value);
-      const d = parseInt(document.getElementById('pidAngleD').value);
-      const sp = parseInt(document.getElementById('pidSpeedP').value);
-      const si = parseInt(document.getElementById('pidSpeedI').value);
-      robot.setBalancePID(p, d, sp, si);
-    }
-
-    // Joystick & D-Pad Setup (Optimized with cached rect to avoid reflows)
-    const base = document.getElementById('joystickBase');
-    const thumb = document.getElementById('joystickThumb');
-    let isDragging = false;
-    let cachedRect = null;
-
-    base.addEventListener('pointerdown', (e) => {
-      isDragging = true;
-      cachedRect = base.getBoundingClientRect();
-      base.setPointerCapture(e.pointerId);
-    });
-
-    base.addEventListener('pointermove', (e) => {
-      if (!isDragging || !cachedRect) return;
-      const dx = e.clientX - (cachedRect.left + cachedRect.width / 2);
-      const dy = e.clientY - (cachedRect.top + cachedRect.height / 2);
-      thumb.style.transform = `translate(calc(-50% + ${Math.max(-60, Math.min(60, dx))}px), calc(-50% + ${Math.max(-60, Math.min(60, dy))}px))`;
-      robot.setDrive(Math.round(128 + (dx / 60) * 127), Math.round(128 - (dy / 60) * 127));
-      hudDrive.textContent = `${Math.round(dx)}/${Math.round(-dy)}`;
-    });
-
-    const stopJoy = () => {
-      isDragging = false;
-      cachedRect = null;
-      thumb.style.transform = 'translate(-50%, -50%)';
-      robot.stop();
-      hudDrive.textContent = '0/0';
-    };
-    base.addEventListener('pointerup', stopJoy);
-    base.addEventListener('pointercancel', stopJoy);
-
-    // D-Pad Button Pointer Event Setup
-    document.querySelectorAll('.dpad-btn').forEach(btn => {
-      const startDrive = (e) => {
-        e.preventDefault();
-        const dir = btn.dataset.dir;
-        const speed = parseInt(document.getElementById('speedSlider').value) / 100;
-        const hi = Math.round(128 + 127 * speed);
-        const lo = Math.round(128 - 127 * speed);
-        if (dir === 'F') robot.setDrive(128, hi);
-        else if (dir === 'B') robot.setDrive(128, lo);
-        else if (dir === 'L') robot.setDrive(lo, 128);
-        else if (dir === 'R') robot.setDrive(hi, 128);
-        btn.classList.add('pressed');
-      };
-      const stopDrive = (e) => {
-        e.preventDefault();
-        robot.stop();
-        btn.classList.remove('pressed');
-      };
-      btn.addEventListener('pointerdown', startDrive);
-      btn.addEventListener('pointerup', stopDrive);
-      btn.addEventListener('pointercancel', stopDrive);
-      btn.addEventListener('pointerleave', stopDrive);
-    });
-
-    document.getElementById('btnEmergencyStop').addEventListener('click', () => { robot.sendStop(); stopJoy(); });
-  </script>
-</body>
-</html>
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#f8fafc">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Mi Robot Web Studio Pro</title>
+  <link rel="manifest" href="manifest.json">
+  <style>
+    :root {
+      /* Modern Light Mode Palette (Default) */
+      --bg: #f8fafc;
+      --card-bg: #ffffff;
+      --card-border: #e2e8f0;
+      --card-hover: #f1f5f9;
+      --header-bg: rgba(255, 255, 255, 0.94);
+      --tab-bg: #f1f5f9;
+      --tab-active: #ffffff;
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #f97316;
+      --accent-light: #fff7ed;
+      --success: #10b981;
+      --success-light: #ecfdf5;
+      --danger: #ef4444;
+      --danger-light: #fef2f2;
+      --warn: #f59e0b;
+      --text: #0f172a;
+      --text-muted: #475569;
+      --text-dim: #94a3b8;
+      --hud-bg: #f1f5f9;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.04);
+      --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
+      --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    }
+
+    /* Dark Mode Theme */
+    [data-theme="dark"] {
+      --bg: #090d16;
+      --card-bg: #121824;
+      --card-border: #232d3f;
+      --card-hover: #1a2233;
+      --header-bg: rgba(18, 24, 36, 0.94);
+      --tab-bg: #090d16;
+      --tab-active: #1e283d;
+      --primary: #3b82f6;
+      --primary-hover: #60a5fa;
+      --primary-light: rgba(59, 130, 246, 0.15);
+      --accent: #ff6b00;
+      --accent-light: rgba(255, 107, 0, 0.15);
+      --success: #10b981;
+      --success-light: rgba(16, 185, 129, 0.15);
+      --danger: #f43f5e;
+      --danger-light: rgba(244, 63, 94, 0.15);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+      --hud-bg: #0d121d;
+      --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
+      --shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+      --shadow-lg: 0 12px 24px rgba(0, 0, 0, 0.5);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Pretendard", "Segoe UI", Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      padding-bottom: env(safe-area-inset-bottom, 20px);
+      transition: background-color 0.2s ease, color 0.2s ease;
+    }
+
+    /* Vector Icon Utility */
+    .icon {
+      width: 18px;
+      height: 18px;
+      stroke-width: 2;
+      stroke: currentColor;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      display: inline-block;
+      vertical-align: middle;
+      flex-shrink: 0;
+    }
+    .icon-sm { width: 14px; height: 14px; stroke-width: 2; }
+    .icon-lg { width: 22px; height: 22px; stroke-width: 2; }
+
+    /* Header */
+    header {
+      background: var(--header-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--card-border);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .title-box { display: flex; align-items: center; gap: 8px; }
+    .robot-name-wrap { display: flex; align-items: center; gap: 6px; }
+    .robot-name-display { font-size: 1.05rem; font-weight: 800; cursor: pointer; letter-spacing: -0.02em; }
+    .btn-icon-subtle {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 4px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      transition: background 0.15s;
+    }
+    .btn-icon-subtle:hover { background: var(--card-hover); color: var(--primary); }
+
+    .header-actions { display: flex; align-items: center; gap: 8px; }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px;
+      border-radius: 20px; font-size: 0.75rem; font-weight: 700; background: var(--tab-bg);
+      color: var(--text-muted); border: 1px solid var(--card-border);
+    }
+    .status-badge.connected { background: var(--success-light); color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
+    .status-dot { width: 7px; height: 7px; border-radius: 50%; background: currentColor; }
+
+    /* Studio Tabs Navigation */
+    .studio-tabs {
+      display: flex;
+      background: var(--card-bg);
+      padding: 6px;
+      gap: 6px;
+      border-bottom: 1px solid var(--card-border);
+      overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .studio-tabs::-webkit-scrollbar { display: none; }
+    .studio-tab-btn {
+      flex: 1;
+      min-width: 90px;
+      padding: 8px 12px;
+      background: var(--tab-bg);
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      font-size: 0.8rem;
+      font-weight: 700;
+      border-radius: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      white-space: nowrap;
+      transition: all 0.18s ease;
+    }
+    .studio-tab-btn:hover { background: var(--card-hover); color: var(--text); }
+    .studio-tab-btn.active {
+      background: var(--primary);
+      color: #ffffff;
+      box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
+    }
+
+    /* Diagnostics Chips */
+    .diag-panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--card-bg);
+      border-bottom: 1px solid var(--card-border);
+      font-size: 0.7rem;
+    }
+    .diag-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 8px;
+      border-radius: 6px;
+      background: var(--tab-bg);
+      color: var(--text-muted);
+      border: 1px solid var(--card-border);
+    }
+    .diag-chip.ok { background: var(--success-light); color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
+    .diag-chip.disabled { opacity: 0.55; text-decoration: line-through; }
+
+    /* HUD Bar */
+    .hud-bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      padding: 8px 16px;
+      background: var(--hud-bg);
+      border-bottom: 1px solid var(--card-border);
+    }
+    .hud-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: var(--card-bg);
+      padding: 6px 4px;
+      border-radius: 8px;
+      border: 1px solid var(--card-border);
+      box-shadow: var(--shadow-sm);
+    }
+    .hud-label { font-size: 0.65rem; color: var(--text-dim); font-weight: 600; }
+    .hud-val { font-size: 0.95rem; font-weight: 800; font-family: var(--font-mono); color: var(--primary); }
+
+    /* Tab Sections */
+    .tab-section {
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      padding: 14px 16px;
+      max-width: 680px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .tab-section.active { display: flex; }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: var(--shadow);
+    }
+
+    .card-title {
+      font-size: 0.95rem;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    /* Buttons */
+    .btn-action {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      color: var(--text);
+      padding: 9px 14px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      box-shadow: var(--shadow-sm);
+      transition: all 0.15s ease;
+    }
+    .btn-action:hover { background: var(--card-hover); }
+    .btn-action.primary { background: var(--primary); color: #ffffff; border-color: var(--primary); }
+    .btn-action.primary:hover { background: var(--primary-hover); }
+    .btn-action.danger { background: var(--danger-light); color: var(--danger); border-color: rgba(239, 68, 68, 0.3); }
+    .btn-action.accent { background: var(--accent-light); color: var(--accent); border-color: rgba(249, 115, 22, 0.3); }
+    .btn-action.gradient-train {
+      background: linear-gradient(135deg, #2563eb, #7c3aed);
+      color: #ffffff;
+      border: none;
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
+      font-size: 0.95rem;
+      padding: 12px 20px;
+      border-radius: 12px;
+    }
+    .btn-action.gradient-train:hover { filter: brightness(1.08); transform: translateY(-1px); }
+
+    /* Joystick & D-Pad */
+    .joystick-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 20px 0;
+    }
+    .joystick-base {
+      width: 180px;
+      height: 180px;
+      border-radius: 50%;
+      background: var(--tab-bg);
+      border: 3px solid var(--card-border);
+      position: relative;
+      touch-action: none;
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.08);
+    }
+    .joystick-thumb {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: var(--primary);
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+      pointer-events: none;
+      transition: transform 0.05s ease-out;
+    }
+
+    .dpad-container {
+      display: grid;
+      grid-template-columns: repeat(3, 60px);
+      grid-template-rows: repeat(3, 60px);
+      gap: 8px;
+      justify-content: center;
+      margin: 16px 0;
+    }
+    .dpad-btn {
+      background: var(--card-bg);
+      border: 2px solid var(--card-border);
+      border-radius: 12px;
+      color: var(--text);
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--shadow-sm);
+      touch-action: none;
+    }
+    .dpad-btn:active, .dpad-btn.pressed {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+      transform: scale(0.95);
+    }
+
+    /* Sliders */
+    .setting-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--card-border);
+    }
+    .setting-row:last-child { border-bottom: none; }
+    .setting-label { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
+    .slider {
+      flex: 1;
+      max-width: 180px;
+      height: 6px;
+      accent-color: var(--primary);
+      border-radius: 3px;
+    }
+
+    /* ========================================================
+       PIANO KEYBOARD (Mathematical Precision Flex + Calc Grid)
+       ======================================================== */
+    .piano-wrapper {
+      background: var(--tab-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 16px;
+      padding: 16px 8px 10px 8px;
+      margin-top: 8px;
+      overflow-x: auto;
+      box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.04);
+    }
+    .piano-keyboard-container {
+      position: relative;
+      display: flex;
+      width: 100%;
+      min-width: 340px;
+      max-width: 480px;
+      height: 160px;
+      margin: 0 auto;
+    }
+    /* White Keys */
+    .white-key {
+      flex: 1;
+      height: 100%;
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      border-right: none;
+      border-radius: 0 0 7px 7px;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      padding-bottom: 8px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #475569;
+      cursor: pointer;
+      box-shadow: 0 3px 5px rgba(0, 0, 0, 0.07);
+      touch-action: none;
+      transition: background 0.1s, transform 0.05s;
+    }
+    .white-key:last-child { border-right: 1px solid #cbd5e1; }
+    .white-key:active, .white-key.active {
+      background: #eff6ff;
+      color: var(--primary);
+      transform: translateY(2px);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    /* Black Keys */
+    .black-key {
+      position: absolute;
+      width: clamp(26px, 6.2%, 34px);
+      height: 62%;
+      background: #1e293b;
+      border-radius: 0 0 5px 5px;
+      z-index: 5;
+      top: 0;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-end;
+      align-items: center;
+      padding-bottom: 6px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      color: #cbd5e1;
+      cursor: pointer;
+      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.25);
+      touch-action: none;
+      transition: background 0.1s, transform 0.05s;
+    }
+    .black-key:active, .black-key.active {
+      background: #0f172a;
+      color: #38bdf8;
+      transform: translateY(2px);
+    }
+
+    /* ========================================================
+       SUPERVISED ML STUDIO (Teachable Machine / CreateAI Style)
+       ======================================================== */
+    .ml-class-card {
+      background: var(--card-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      box-shadow: var(--shadow-sm);
+    }
+    .ml-class-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .ml-class-title {
+      font-size: 0.9rem;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .ml-class-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .ml-sample-pill {
+      font-size: 0.72rem;
+      font-weight: 700;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: var(--tab-bg);
+      color: var(--text-muted);
+    }
+    .btn-sample {
+      background: var(--primary-light);
+      border: 1px solid rgba(37, 99, 235, 0.3);
+      color: var(--primary);
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      cursor: pointer;
+      touch-action: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.1s;
+    }
+    .btn-sample:active, .btn-sample.sampling {
+      background: var(--primary);
+      color: #ffffff;
+      transform: scale(0.97);
+    }
+
+    /* Confidence Bar */
+    .confidence-meter {
+      height: 10px;
+      border-radius: 5px;
+      background: var(--tab-bg);
+      overflow: hidden;
+      margin-top: 6px;
+    }
+    .confidence-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--success));
+      width: 0%;
+      transition: width 0.15s ease-out;
+    }
+
+    /* Vision AI Canvas */
+    .vision-container {
+      position: relative;
+      width: 100%;
+      height: 240px;
+      background: #000000;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .vision-container video {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transform: scaleX(-1);
+    }
+    .vision-container canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      transform: scaleX(-1);
+      pointer-events: none;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(4px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      padding: 20px;
+    }
+    .modal-card {
+      background: var(--card-bg);
+      border-radius: 16px;
+      border: 1px solid var(--card-border);
+      padding: 20px;
+      width: 100%;
+      max-width: 360px;
+      box-shadow: var(--shadow-lg);
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ================= HEADER ================= -->
+  <header>
+    <div class="title-box">
+      <div class="robot-name-wrap" onclick="openRenameModal()">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="10" rx="3"/><circle cx="8" cy="16" r="1.5"/><circle cx="16" cy="16" r="1.5"/><path d="M12 2v5M8 7h8"/></svg>
+        <span id="robotNameTitle" class="robot-name-display">Mi Robot</span>
+        <button class="btn-icon-subtle" title="이름 변경">
+          <svg class="icon-sm" viewBox="0 0 24 24"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div id="statusBadge" class="status-badge">
+        <span class="status-dot"></span>
+        <span id="statusText">연결 대기</span>
+      </div>
+      <button class="btn-icon-subtle" onclick="toggleTheme()" title="테마 전환 (라이트/다크)">
+        <svg id="themeIcon" class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
+      </button>
+      <button id="btnConnect" class="btn-action primary">
+        <svg class="icon-sm" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11M12 2v20"/></svg>
+        <span>연결</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ================= STUDIO NAVIGATION TABS ================= -->
+  <nav class="studio-tabs">
+    <button class="studio-tab-btn active" onclick="switchStudioTab('control', this)">
+      <svg class="icon" viewBox="0 0 24 24"><rect x="2" y="6" width="20" height="12" rx="4"/><line x1="6" y1="12" x2="10" y2="12"/><line x1="8" y1="10" x2="8" y2="14"/><circle cx="15" cy="11" r="1"/><circle cx="17" cy="13" r="1"/></svg>
+      <span>컨트롤러</span>
+    </button>
+    <button class="studio-tab-btn" onclick="switchStudioTab('balance', this)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18M6 8l6-5 6 5M6 16l6 5 6-5"/></svg>
+      <span>자가 밸런싱</span>
+    </button>
+    <button class="studio-tab-btn" onclick="switchStudioTab('piano', this)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM9 4v9M15 4v9"/></svg>
+      <span>피아노 연주</span>
+    </button>
+    <button class="studio-tab-btn" onclick="switchStudioTab('ml', this)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 1 4 4c0 1.1-.5 2.1-1.2 2.8L17 11c1.5.3 2.6 1.6 2.6 3.2 0 1.5-.9 2.7-2.2 3.1l.6 2.7H6l.6-2.7C5.3 16.9 4.4 15.7 4.4 14.2c0-1.6 1.1-2.9 2.6-3.2l2.2-2.2C8.5 8.1 8 7.1 8 6a4 4 0 0 1 4-4z"/></svg>
+      <span>패턴 AI 학습</span>
+    </button>
+    <button class="studio-tab-btn" onclick="switchStudioTab('vision', this)">
+      <svg class="icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      <span>AI 비전 제어</span>
+    </button>
+  </nav>
+
+  <!-- ================= DIAGNOSTICS BAR ================= -->
+  <div class="diag-panel">
+    <div id="chipBLE" class="diag-chip">BLE 블루투스</div>
+    <div id="chipAudio" class="diag-chip">웹 오디오</div>
+    <div id="chipCamera" class="diag-chip">카메라 비전</div>
+    <div id="chipGamepad" class="diag-chip">게임패드</div>
+    <div id="chipTouch" class="diag-chip">터치 센서</div>
+  </div>
+
+  <!-- ================= LIVE HUD BAR ================= -->
+  <div class="hud-bar">
+    <div class="hud-item"><span class="hud-label">속도율</span><span id="hudDrive" class="hud-val">0/0</span></div>
+    <div class="hud-item"><span class="hud-label">자이로 각도</span><span id="hudPitch" class="hud-val">0.0°</span></div>
+    <div class="hud-item"><span class="hud-label">스피커 볼륨</span><span id="hudVolume" class="hud-val">10</span></div>
+    <div class="hud-item"><span class="hud-label">입력 소스</span><span id="hudInput" class="hud-val">터치</span></div>
+  </div>
+
+  <!-- ================= TAB 1: CONTROLLER ================= -->
+  <section id="tabSecControl" class="tab-section active">
+    <div class="card">
+      <div style="display:flex; justify-content:center; gap:8px; margin-bottom:12px;">
+        <button class="btn-action" onclick="setDriveMode('joystick')">
+          <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+          조이스틱
+        </button>
+        <button class="btn-action" onclick="setDriveMode('dpad')">
+          <svg class="icon-sm" viewBox="0 0 24 24"><path d="M12 2v20M2 12h20"/></svg>
+          방향 패드
+        </button>
+        <button id="btnEmergencyStop" class="btn-action danger" style="margin-left:auto;">
+          <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>
+          비상 정지
+        </button>
+      </div>
+
+      <div id="joystickView" class="joystick-container">
+        <div id="joystickBase" class="joystick-base">
+          <div id="joystickThumb" class="joystick-thumb"></div>
+        </div>
+      </div>
+
+      <div id="dpadView" class="dpad-container" style="display: none;">
+        <div></div><button class="dpad-btn" data-dir="F">▲</button><div></div>
+        <button class="dpad-btn" data-dir="L">◀</button><div class="dpad-center"></div><button class="dpad-btn" data-dir="R">▶</button>
+        <div></div><button class="dpad-btn" data-dir="B">▼</button><div></div>
+      </div>
+
+      <div class="setting-row">
+        <span class="setting-label">최대 주행 속도</span>
+        <input type="range" id="speedSlider" class="slider" min="30" max="100" value="85">
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 2: SELF BALANCING & PID ================= -->
+  <section id="tabSecBalance" class="tab-section">
+    <div class="card">
+      <div class="card-title">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg>
+        <span>실시간 자이로 IMU 자세 오실로스코프</span>
+      </div>
+      <canvas id="scopeCanvas" style="width:100%; height:90px; background:var(--tab-bg); border-radius:10px; border:1px solid var(--card-border);"></canvas>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+        <span style="font-size:0.8rem; color:var(--text-muted);">수평 기준선 오차 보정</span>
+        <button class="btn-action accent" onclick="robot.calibrateBalance()">
+          <svg class="icon-sm" viewBox="0 0 24 24"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+          수평 0점 캘리브레이션
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>공식 2륜 자립 밸런스 PID 게인 미세 튜닝</span>
+      </div>
+      <div class="setting-row"><span class="setting-label">각도 P (복원력)</span><input type="range" id="pidAngleP" class="slider" min="10" max="120" value="50" oninput="applyPIDGains()"></div>
+      <div class="setting-row"><span class="setting-label">각도 D (감쇠력)</span><input type="range" id="pidAngleD" class="slider" min="5" max="80" value="30" oninput="applyPIDGains()"></div>
+      <div class="setting-row"><span class="setting-label">속도 P (위치유지)</span><input type="range" id="pidSpeedP" class="slider" min="10" max="100" value="40" oninput="applyPIDGains()"></div>
+      <div class="setting-row"><span class="setting-label">속도 I (오차누적)</span><input type="range" id="pidSpeedI" class="slider" min="0" max="50" value="20" oninput="applyPIDGains()"></div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 3: 36-KEY PIANO ================= -->
+  <section id="tabSecPiano" class="tab-section">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div class="card-title" style="margin-bottom:0;">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM9 4v9M15 4v9"/></svg>
+          <span>피아노 건반 연주 (C4 - B4)</span>
+        </div>
+        <button class="btn-action accent" onclick="playDemoSong()">
+          <svg class="icon-sm" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>
+          학교종 멜로디
+        </button>
+      </div>
+
+      <div class="piano-wrapper">
+        <div class="piano-keyboard-container" id="pianoKeyboard">
+          <!-- Perfectly Aligned 7 White Keys and 5 Black Keys -->
+          <div class="white-key" data-note="13">C4</div>
+          <div class="white-key" data-note="15">D4</div>
+          <div class="white-key" data-note="17">E4</div>
+          <div class="white-key" data-note="18">F4</div>
+          <div class="white-key" data-note="20">G4</div>
+          <div class="white-key" data-note="22">A4</div>
+          <div class="white-key" data-note="24">B4</div>
+
+          <!-- Mathematically Aligned Black Keys -->
+          <div class="black-key" data-note="14" style="left: calc((100% / 7) * 1 - (clamp(26px, 6.2%, 34px) / 2));">C#4</div>
+          <div class="black-key" data-note="16" style="left: calc((100% / 7) * 2 - (clamp(26px, 6.2%, 34px) / 2));">D#4</div>
+          <div class="black-key" data-note="19" style="left: calc((100% / 7) * 4 - (clamp(26px, 6.2%, 34px) / 2));">F#4</div>
+          <div class="black-key" data-note="21" style="left: calc((100% / 7) * 5 - (clamp(26px, 6.2%, 34px) / 2));">G#4</div>
+          <div class="black-key" data-note="23" style="left: calc((100% / 7) * 6 - (clamp(26px, 6.2%, 34px) / 2));">A#4</div>
+        </div>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
+        <span style="font-size:0.75rem; color:var(--text-muted);">
+          PC 키보드 연주: <kbd>A</kbd>, <kbd>S</kbd>, <kbd>D</kbd>, <kbd>F</kbd>, <kbd>G</kbd>, <kbd>H</kbd>, <kbd>J</kbd>
+        </span>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:0.75rem; color:var(--text-muted);">볼륨</span>
+          <input type="range" id="volSlider" class="slider" min="0" max="15" value="10" style="width:100px;" oninput="updateVolume(this.value)">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 4: SUPERVISED ML STUDIO ================= -->
+  <section id="tabSecML" class="tab-section">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+        <div class="card-title" style="margin-bottom:0;">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 1 4 4c0 1.1-.5 2.1-1.2 2.8L17 11c1.5.3 2.6 1.6 2.6 3.2 0 1.5-.9 2.7-2.2 3.1l.6 2.7H6l.6-2.7C5.3 16.9 4.4 15.7 4.4 14.2c0-1.6 1.1-2.9 2.6-3.2l2.2-2.2C8.5 8.1 8 7.1 8 6a4 4 0 0 1 4-4z"/></svg>
+          <span>지도학습 패턴 분류기 (CreateAI)</span>
+        </div>
+        <button class="btn-action primary" onclick="promptAddClass()">
+          <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          클래스 추가
+        </button>
+      </div>
+      <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:12px;">
+        로봇의 자세나 충격 상태를 각 클래스별로 기록한 뒤, [AI 모델 학습]을 누르면 즉시 머신러닝 모델이 생성되어 동작합니다.
+      </p>
+
+      <!-- Dynamic Class Cards Container -->
+      <div id="mlClassContainer" style="display:flex; flex-direction:column; gap:10px;"></div>
+
+      <div style="margin-top:16px; text-align:center;">
+        <button class="btn-action gradient-train" style="width:100%;" onclick="trainMLModel()">
+          <svg class="icon" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+          🚀 AI 모델 학습 및 생성하기
+        </button>
+      </div>
+
+      <!-- Live Inference HUD -->
+      <div style="margin-top:16px; padding:12px; background:var(--tab-bg); border-radius:12px; border:1px solid var(--card-border);">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">실시간 AI 추론 결과</span>
+          <label style="font-size:0.72rem; display:flex; align-items:center; gap:4px; cursor:pointer;">
+            <input type="checkbox" id="chkAutoAction" checked>
+            로봇 자동 제어 연동
+          </label>
+        </div>
+        <div id="mlPrediction" style="font-size:1.15rem; font-weight:800; color:var(--primary); margin-top:6px;">
+          학습 모델 대기 중...
+        </div>
+        <div class="confidence-meter">
+          <div id="mlConfidenceFill" class="confidence-fill"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= TAB 5: VISION AI STUDIO ================= -->
+  <section id="tabSecVision" class="tab-section">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div class="card-title" style="margin-bottom:0;">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          <span>AI 비전 모션 제어 (Hand & Pose)</span>
+        </div>
+        <button id="btnToggleVision" class="btn-action primary" onclick="toggleVision()">
+          카메라 켜기
+        </button>
+      </div>
+
+      <!-- Mode Selector (Hand vs Body Pose) -->
+      <div style="display:flex; gap:6px; margin-bottom:10px;">
+        <button id="btnVisionModeHand" class="btn-action primary" style="flex:1;" onclick="setVisionMode('hand')">
+          ✋ 핸드 제스처 모드
+        </button>
+        <button id="btnVisionModePose" class="btn-action" style="flex:1;" onclick="setVisionMode('pose')">
+          🧍 상체 포즈 모드
+        </button>
+      </div>
+
+      <div class="vision-container">
+        <video id="visionVideo" playsinline muted autoplay></video>
+        <canvas id="visionCanvas"></canvas>
+      </div>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
+        <div style="font-size:0.78rem; color:var(--text-muted);">
+          인식된 명령: <strong id="visionCmdText" style="color:var(--primary); font-size:0.9rem;">정지</strong>
+        </div>
+        <span style="font-size:0.7rem; color:var(--text-dim);">
+          포즈 모드: 좌/우 기울임(회전), 숙이기(후진), 세우기(전진)
+        </span>
+      </div>
+    </div>
+  </section>
+
+  <!-- Rename Modal -->
+  <div id="renameModal" class="modal-overlay">
+    <div class="modal-card">
+      <h3 style="font-size:0.95rem; margin-bottom:10px;">로봇 별칭 변경</h3>
+      <input type="text" id="renameInput" style="width:100%; padding:10px; border:1px solid var(--card-border); border-radius:8px; font-size:0.9rem; margin-bottom:14px;">
+      <div style="display:flex; justify-content:flex-end; gap:8px;">
+        <button class="btn-action" onclick="closeRenameModal()">취소</button>
+        <button class="btn-action primary" onclick="saveRenameModal()">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Core Scripts -->
+  <script src="robot-ble.js"></script>
+  <script src="device-capability.js"></script>
+  <script src="robot-alias.js"></script>
+  <script src="piano-engine.js"></script>
+  <script src="sensor-ml.js"></script>
+  <script src="vision-ai.js"></script>
+
+  <script>
+    // Theme Management (Default to Light Mode)
+    function toggleTheme() {
+      const html = document.documentElement;
+      const current = html.getAttribute('data-theme') || 'light';
+      const next = current === 'light' ? 'dark' : 'light';
+      html.setAttribute('data-theme', next);
+      localStorage.setItem('mi_theme', next);
+    }
+    const savedTheme = localStorage.getItem('mi_theme') || 'light';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+
+    // Initialize Global Controllers
+    const robot = new MiRobotBLE();
+    const aliasMgr = new RobotAliasManager();
+    const piano = new PianoEngine();
+    const ml = new SensorPatternML();
+    const visionAI = new VisionHandController();
+
+    window.robot = robot;
+    window.piano = piano;
+    window.ml = ml;
+
+    // Elements
+    const btnConnect = document.getElementById('btnConnect');
+    const statusBadge = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const hudDrive = document.getElementById('hudDrive');
+    const hudPitch = document.getElementById('hudPitch');
+    const hudVolume = document.getElementById('hudVolume');
+    const hudInput = document.getElementById('hudInput');
+
+    // 1. Diagnostics Probe
+    const updateChip = (id, ok) => {
+      const el = document.getElementById(id);
+      if (el) el.className = `diag-chip ${ok ? 'ok' : 'disabled'}`;
+    };
+    updateChip('chipBLE', DeviceCapability.hasBluetooth);
+    updateChip('chipAudio', DeviceCapability.hasWebAudio);
+    updateChip('chipCamera', DeviceCapability.hasCamera);
+    updateChip('chipGamepad', DeviceCapability.hasGamepad);
+    updateChip('chipTouch', DeviceCapability.hasTouch);
+
+    // 2. Tab Navigation
+    function setDriveMode(mode) {
+      document.getElementById('joystickView').style.display = (mode === 'joystick') ? 'flex' : 'none';
+      document.getElementById('dpadView').style.display = (mode === 'dpad') ? 'grid' : 'none';
+      robot.stop();
+    }
+
+    let visionActive = false;
+    function switchStudioTab(tabId, btnEl) {
+      document.querySelectorAll('.studio-tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
+
+      const targetBtn = btnEl || (typeof event !== 'undefined' ? event?.currentTarget : null) || document.querySelector(`.studio-tab-btn[onclick*="${tabId}"]`);
+      if (targetBtn && targetBtn.classList) targetBtn.classList.add('active');
+
+      if (tabId !== 'vision' && visionActive) {
+        visionAI.stop();
+        visionActive = false;
+        const vBtn = document.getElementById('btnToggleVision');
+        if (vBtn) vBtn.textContent = '카메라 켜기';
+      }
+
+      const map = {
+        control: 'tabSecControl',
+        balance: 'tabSecBalance',
+        piano: 'tabSecPiano',
+        ml: 'tabSecML',
+        vision: 'tabSecVision'
+      };
+      if (map[tabId]) document.getElementById(map[tabId]).classList.add('active');
+    }
+
+    // 3. Rename Modal
+    function openRenameModal() {
+      document.getElementById('renameInput').value = aliasMgr.getName(robot.device?.id, 'Mi Robot');
+      document.getElementById('renameModal').style.display = 'flex';
+    }
+    function closeRenameModal() { document.getElementById('renameModal').style.display = 'none'; }
+    function saveRenameModal() {
+      aliasMgr.setName(robot.device?.id || 'default', document.getElementById('renameInput').value);
+      document.getElementById('robotNameTitle').textContent = aliasMgr.getName(robot.device?.id, 'Mi Robot');
+      closeRenameModal();
+    }
+
+    // 4. Bluetooth Connection Event Bindings
+    robot.addEventListener('connectionchange', (e) => {
+      const conn = e.detail.connected;
+      if (conn) {
+        statusBadge.className = 'status-badge connected';
+        statusText.textContent = '연결됨';
+        btnConnect.innerHTML = '<svg class="icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg> 해제';
+        document.getElementById('robotNameTitle').textContent = aliasMgr.getName(robot.device?.id, 'Mi Robot');
+      } else {
+        statusBadge.className = 'status-badge';
+        statusText.textContent = '연결 대기';
+        btnConnect.innerHTML = '<svg class="icon-sm" viewBox="0 0 24 24"><path d="M6.5 6.5l11 11M17.5 6.5l-11 11M12 2v20"/></svg> 연결';
+      }
+    });
+
+    btnConnect.addEventListener('click', async () => {
+      if (robot.isConnected) await robot.disconnect();
+      else try { await robot.connect(); } catch (e) { alert(e.message); }
+    });
+
+    function updateVolume(val) {
+      robot.setVolume(val);
+      hudVolume.textContent = val;
+    }
+
+    function applyPIDGains() {
+      const p = parseInt(document.getElementById('pidAngleP').value);
+      const d = parseInt(document.getElementById('pidAngleD').value);
+      const sp = parseInt(document.getElementById('pidSpeedP').value);
+      const si = parseInt(document.getElementById('pidSpeedI').value);
+      robot.setBalancePID(p, d, sp, si);
+    }
+
+    // 5. Telemetry & Oscilloscope
+    const scopeCanvas = document.getElementById('scopeCanvas');
+    const scopeCtx = scopeCanvas.getContext('2d');
+    const chartHistory = new Array(60).fill(0);
+
+    robot.addEventListener('telemetry', (e) => {
+      const { pitch } = e.detail;
+      hudPitch.textContent = `${pitch.toFixed(1)}°`;
+      chartHistory.push(pitch);
+      chartHistory.shift();
+      drawScope();
+    });
+
+    function drawScope() {
+      scopeCtx.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height);
+      scopeCtx.strokeStyle = '#2563eb';
+      scopeCtx.lineWidth = 2;
+      scopeCtx.beginPath();
+      const step = scopeCanvas.width / (chartHistory.length - 1);
+      for (let i = 0; i < chartHistory.length; i++) {
+        const x = i * step;
+        const y = scopeCanvas.height / 2 - (chartHistory[i] * 1.8);
+        if (i === 0) scopeCtx.moveTo(x, y);
+        else scopeCtx.lineTo(x, y);
+      }
+      scopeCtx.stroke();
+    }
+
+    // 6. Piano Keyboard Setup
+    document.querySelectorAll('.white-key, .black-key').forEach(key => {
+      const noteId = parseInt(key.dataset.note);
+      const play = (e) => {
+        e.preventDefault();
+        key.classList.add('active');
+        piano.playNote(noteId);
+        if (robot.isConnected) robot.playTone(noteId);
+      };
+      const release = (e) => {
+        e.preventDefault();
+        key.classList.remove('active');
+      };
+      key.addEventListener('pointerdown', play);
+      key.addEventListener('pointerup', release);
+      key.addEventListener('pointerleave', release);
+    });
+
+    function playDemoSong() {
+      // Sol Sol La La Sol Sol Mi (20, 20, 22, 22, 20, 20, 17)
+      piano.playMelody([20, 20, 22, 22, 20, 20, 17, 20, 20, 17, 17, 15], 300);
+      if (robot.isConnected) {
+        [20, 20, 22, 22, 20, 20, 17, 20, 20, 17, 17, 15].forEach((n, idx) => {
+          setTimeout(() => robot.playTone(n), idx * 300);
+        });
+      }
+    }
+
+    // 7. Interactive Supervised ML UI (Teachable Machine Style)
+    function renderMLClasses() {
+      const container = document.getElementById('mlClassContainer');
+      container.innerHTML = '';
+
+      ml.classes.forEach((cls) => {
+        const count = ml.getExampleCount(cls.id);
+        const card = document.createElement('div');
+        card.className = 'ml-class-card';
+        card.innerHTML = `
+          <div class="ml-class-header">
+            <div class="ml-class-title">
+              <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/></svg>
+              <span>${cls.name}</span>
+            </div>
+            <div class="ml-class-controls">
+              <span class="ml-sample-pill">${count}개 수집됨</span>
+              <button class="btn-icon-subtle" onclick="deleteMLClass('${cls.id}')" title="삭제">
+                <svg class="icon-sm" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; gap:8px;">
+            <div style="display:flex; align-items:center; gap:6px;">
+              <span style="font-size:0.75rem; color:var(--text-muted);">동작:</span>
+              <select style="padding:4px 6px; border-radius:6px; border:1px solid var(--card-border); font-size:0.75rem; background:var(--card-bg); color:var(--text);" onchange="updateClassAction('${cls.id}', this.value)">
+                <option value="none" ${cls.action === 'none' ? 'selected' : ''}>없음</option>
+                <option value="stop" ${cls.action === 'stop' ? 'selected' : ''}>🛑 긴급 정지</option>
+                <option value="horn" ${cls.action === 'horn' ? 'selected' : ''}>🔊 경고음 / 혼</option>
+                <option value="melody" ${cls.action === 'melody' ? 'selected' : ''}>🎵 멜로디 연주</option>
+                <option value="calibrate" ${cls.action === 'calibrate' ? 'selected' : ''}>⚖️ 수평 캘리브레이션</option>
+                <option value="forward" ${cls.action === 'forward' ? 'selected' : ''}>⬆️ 전진</option>
+                <option value="backward" ${cls.action === 'backward' ? 'selected' : ''}>⬇️ 후진</option>
+              </select>
+            </div>
+            <button class="btn-sample" data-class="${cls.id}">
+              <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>
+              샘플 수집 (길게 누름)
+            </button>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+
+      // Bind Sampling Buttons
+      container.querySelectorAll('.btn-sample').forEach(btn => {
+        let sampleTimer = null;
+        const clsId = btn.dataset.class;
+        const start = (e) => {
+          e.preventDefault();
+          btn.classList.add('sampling');
+          recordSample(clsId);
+          sampleTimer = setInterval(() => recordSample(clsId), 120);
+        };
+        const stop = (e) => {
+          e.preventDefault();
+          btn.classList.remove('sampling');
+          if (sampleTimer) clearInterval(sampleTimer);
+          renderMLClasses();
+        };
+        btn.addEventListener('pointerdown', start);
+        btn.addEventListener('pointerup', stop);
+        btn.addEventListener('pointerleave', stop);
+        btn.addEventListener('pointercancel', stop);
+      });
+    }
+
+    function recordSample(clsId) {
+      const windowData = [];
+      for (let i = 0; i < 10; i++) {
+        windowData.push({
+          pitch: robot.telemetry.pitch + (Math.random() - 0.5) * 0.5,
+          roll: robot.telemetry.roll + (Math.random() - 0.5) * 0.5
+        });
+      }
+      const feats = ml.extractFeatures(windowData);
+      ml.addExample(clsId, feats);
+    }
+
+    function promptAddClass() {
+      const name = prompt('새로운 AI 분류 클래스 이름을 입력하세요:', '특정 동작');
+      if (name && name.trim()) {
+        ml.addClass(name);
+        renderMLClasses();
+      }
+    }
+
+    function deleteMLClass(id) {
+      if (confirm('이 클래스와 수집된 모든 샘플을 삭제하시겠습니까?')) {
+        ml.removeClass(id);
+        renderMLClasses();
+      }
+    }
+
+    function updateClassAction(id, action) {
+      ml.setAction(id, action);
+    }
+
+    function trainMLModel() {
+      try {
+        const info = ml.train();
+        alert(`🎉 AI 모델 생성 완료!\n- 클래스: ${info.classCount}개\n- 총 샘플: ${info.sampleCount}개\n- 생성 시각: ${info.trainedAt}`);
+        document.getElementById('mlPrediction').textContent = '모델 활성화 (실시간 추론 중)';
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // Live Inference Loop
+    setInterval(() => {
+      if (!ml.isTrained) return;
+      const windowData = [];
+      for (let i = 0; i < 10; i++) {
+        windowData.push({ pitch: robot.telemetry.pitch, roll: robot.telemetry.roll });
+      }
+      const feats = ml.extractFeatures(windowData);
+      const res = ml.predict(feats);
+
+      const predEl = document.getElementById('mlPrediction');
+      const fillEl = document.getElementById('mlConfidenceFill');
+      predEl.textContent = `${res.className} (${res.confidence}%)`;
+      fillEl.style.width = `${res.confidence}%`;
+
+      // Auto-trigger robot action if enabled
+      if (document.getElementById('chkAutoAction').checked && res.confidence >= 80 && res.action !== 'none') {
+        executeRobotAction(res.action);
+      }
+    }, 250);
+
+    let lastActionTime = 0;
+    function executeRobotAction(act) {
+      const now = Date.now();
+      if (now - lastActionTime < 1500) return; // Debounce 1.5s
+      lastActionTime = now;
+
+      if (act === 'stop') robot.sendStop();
+      else if (act === 'horn') robot.playTone(25);
+      else if (act === 'melody') playDemoSong();
+      else if (act === 'calibrate') robot.calibrateBalance();
+      else if (act === 'forward') robot.setDrive(128, 200);
+      else if (act === 'backward') robot.setDrive(128, 56);
+    }
+
+    renderMLClasses();
+
+    // 8. Vision AI Setup (Hand & Body Pose)
+    async function toggleVision() {
+      const btn = document.getElementById('btnToggleVision');
+      if (visionActive) {
+        visionAI.stop();
+        visionActive = false;
+        btn.textContent = '카메라 켜기';
+        btn.className = 'btn-action primary';
+      } else {
+        try {
+          await visionAI.init(document.getElementById('visionVideo'), document.getElementById('visionCanvas'));
+          await visionAI.start();
+          visionActive = true;
+          btn.textContent = '카메라 끄기';
+          btn.className = 'btn-action danger';
+        } catch (e) {
+          alert(e.message);
+        }
+      }
+    }
+
+    function setVisionMode(mode) {
+      visionAI.setMode(mode);
+      document.getElementById('btnVisionModeHand').className = `btn-action ${mode === 'hand' ? 'primary' : ''}`;
+      document.getElementById('btnVisionModePose').className = `btn-action ${mode === 'pose' ? 'primary' : ''}`;
+    }
+
+    visionAI.addEventListener('gesture', (e) => {
+      const { command, driveX, driveY } = e.detail;
+      document.getElementById('visionCmdText').textContent = command;
+      if (robot.isConnected && driveX !== undefined && driveY !== undefined) {
+        robot.setDrive(driveX, driveY);
+      }
+    });
+
+    // 9. Joystick & D-Pad Setup
+    const base = document.getElementById('joystickBase');
+    const thumb = document.getElementById('joystickThumb');
+    let isDragging = false;
+    let cachedRect = null;
+
+    base.addEventListener('pointerdown', (e) => {
+      isDragging = true;
+      cachedRect = base.getBoundingClientRect();
+      base.setPointerCapture(e.pointerId);
+    });
+
+    base.addEventListener('pointermove', (e) => {
+      if (!isDragging || !cachedRect) return;
+      const dx = e.clientX - (cachedRect.left + cachedRect.width / 2);
+      const dy = e.clientY - (cachedRect.top + cachedRect.height / 2);
+      thumb.style.transform = `translate(calc(-50% + ${Math.max(-60, Math.min(60, dx))}px), calc(-50% + ${Math.max(-60, Math.min(60, dy))}px))`;
+      robot.setDrive(Math.round(128 + (dx / 60) * 127), Math.round(128 - (dy / 60) * 127));
+      hudDrive.textContent = `${Math.round(dx)}/${Math.round(-dy)}`;
+    });
+
+    const stopJoy = () => {
+      isDragging = false;
+      cachedRect = null;
+      thumb.style.transform = 'translate(-50%, -50%)';
+      robot.stop();
+      hudDrive.textContent = '0/0';
+    };
+    base.addEventListener('pointerup', stopJoy);
+    base.addEventListener('pointercancel', stopJoy);
+
+    // D-Pad Button Setup
+    document.querySelectorAll('.dpad-btn').forEach(btn => {
+      const startDrive = (e) => {
+        e.preventDefault();
+        const dir = btn.dataset.dir;
+        const speed = parseInt(document.getElementById('speedSlider').value) / 100;
+        const hi = Math.round(128 + 127 * speed);
+        const lo = Math.round(128 - 127 * speed);
+        if (dir === 'F') robot.setDrive(128, hi);
+        else if (dir === 'B') robot.setDrive(128, lo);
+        else if (dir === 'L') robot.setDrive(lo, 128);
+        else if (dir === 'R') robot.setDrive(hi, 128);
+        btn.classList.add('pressed');
+      };
+      const stopDrive = (e) => {
+        e.preventDefault();
+        robot.stop();
+        btn.classList.remove('pressed');
+      };
+      btn.addEventListener('pointerdown', startDrive);
+      btn.addEventListener('pointerup', stopDrive);
+      btn.addEventListener('pointercancel', stopDrive);
+      btn.addEventListener('pointerleave', stopDrive);
+    });
+
+    document.getElementById('btnEmergencyStop').addEventListener('click', () => {
+      robot.sendStop();
+      stopJoy();
+    });
+
+    // Keyboard Shortcuts (<kbd>WASD</kbd>, <kbd>Space</kbd>)
+    window.addEventListener('keydown', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      hudInput.textContent = '키보드';
+      const key = e.key.toLowerCase();
+      if (key === 'w') robot.setDrive(128, 220);
+      else if (key === 's') robot.setDrive(128, 36);
+      else if (key === 'a') robot.setDrive(36, 128);
+      else if (key === 'd') robot.setDrive(220, 128);
+      else if (key === ' ') { robot.sendStop(); stopJoy(); }
+      // Piano keyboard notes (a, s, d, f, g, h, j)
+      const pianoMap = { 'a': 13, 's': 15, 'd': 17, 'f': 18, 'g': 20, 'h': 22, 'j': 24 };
+      if (pianoMap[key]) {
+        piano.playNote(pianoMap[key]);
+        if (robot.isConnected) robot.playTone(pianoMap[key]);
+      }
+    });
+
+    window.addEventListener('keyup', (e) => {
+      if (e.target.tagName === 'INPUT') return;
+      const key = e.key.toLowerCase();
+      if (['w', 's', 'a', 'd'].includes(key)) robot.stop();
+    });
+
+    // PWA Service Worker Registration
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('./sw.js').catch(() => {});
+    }
+  </script>
+</body>
+</html>
