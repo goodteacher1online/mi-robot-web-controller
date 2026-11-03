@@ -179,49 +179,60 @@
 
     .header-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; flex-wrap: wrap; }
     
-    /* Screen Scale / Resolution Controller */
-    .scale-selector {
+    /* Multi-Robot Fleet Navigation */
+    .fleet-wrap {
       display: flex;
       align-items: center;
-      gap: 2px;
+      gap: 6px;
       background: var(--tab-bg);
-      padding: 2px 4px;
+      padding: 3px 8px;
       border-radius: 8px;
       border: 1px solid var(--card-border);
+      flex-shrink: 0;
     }
-    .scale-label {
-      font-size: 0.68rem;
-      color: var(--text-dim);
-      font-weight: 700;
-      margin: 0 4px;
-    }
-    .btn-scale {
+    .fleet-select {
       background: transparent;
       border: none;
-      color: var(--text-muted);
-      padding: 3px 6px;
-      border-radius: 6px;
-      font-size: 0.72rem;
+      font-size: 0.78rem;
       font-weight: 700;
+      color: var(--text);
+      outline: none;
       cursor: pointer;
-      transition: all 0.15s;
     }
-    .btn-scale:hover { color: var(--text); background: var(--card-hover); }
-    .btn-scale.active { background: var(--primary); color: #ffffff; }
+    .fleet-count-badge {
+      font-size: 0.68rem;
+      font-weight: 800;
+      color: var(--primary);
+      background: var(--primary-light);
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
 
-    .btn-action-text {
+    /* Icon-only System Action Buttons (WakeLock, Fullscreen, Theme) */
+    .btn-icon-subtle {
       background: var(--tab-bg);
       border: 1px solid var(--card-border);
       color: var(--text-muted);
-      padding: 5px 10px;
+      width: 32px;
+      height: 32px;
       border-radius: 8px;
-      font-size: 0.75rem;
-      font-weight: 700;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
-      transition: all 0.15s;
-      white-space: nowrap;
+      transition: all 0.15s ease;
+      flex-shrink: 0;
     }
-    .btn-action-text:hover { color: var(--text); border-color: var(--primary); }
+    .btn-icon-subtle:hover {
+      background: var(--card-hover);
+      color: var(--text);
+      border-color: var(--primary);
+    }
+    .btn-icon-subtle.primary, .btn-icon-subtle.active {
+      background: var(--primary);
+      color: #ffffff;
+      border-color: var(--primary);
+    }
 
     .status-badge {
       display: inline-flex; align-items: center; gap: 5px; padding: 4px 9px;
@@ -231,22 +242,39 @@
     .status-badge.connected { background: var(--success-light); color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
     .status-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
-    /* 2행: 통합 상태 & 텔레메트리 스트립 (3행 디아그노스틱스 + 4행 HUD 결합) */
-    .unified-hud-strip {
+    /* 2행: 단일 행 통합 상태 & 센서 스트립 (텔레메트리 4개 + 센서 칩 5개를 한 줄에 완전 통합) */
+    .unified-status-bar {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 6px 18px;
+      padding: 5px 18px;
       background: var(--hud-bg);
       border-bottom: 1px solid var(--card-border);
-      gap: 12px;
-      flex-wrap: wrap;
+      gap: 10px;
+      overflow-x: auto;
+      white-space: nowrap;
+      scrollbar-width: none;
+      min-height: 38px;
     }
-    .hud-group {
+    .unified-status-bar::-webkit-scrollbar { display: none; }
+    .status-telemetry-group {
       display: flex;
       align-items: center;
-      gap: 8px;
-      flex-wrap: wrap;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    .status-divider {
+      width: 1px;
+      height: 20px;
+      background: var(--card-border);
+      margin: 0 4px;
+      flex-shrink: 0;
+    }
+    .status-diag-group {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      flex-shrink: 0;
     }
     .hud-item {
       display: flex;
@@ -697,13 +725,24 @@
 </head>
 <body>
 
-  <!-- ================= 1행: 통합 헤더 (브랜드 + 스튜디오 탭 + 시스템 도구) ================= -->
+  <!-- ================= 1행: 통합 헤더 (브랜드/군집선택 + 스튜디오 탭 + 시스템 도구) ================= -->
   <header>
     <div class="title-box">
       <div class="robot-name-wrap" onclick="openRenameModal()" title="로봇 별칭 변경">
         <span class="brand-title">MI ROBOT</span>
         <span id="robotNameTitle" class="robot-name-display">기본 기기</span>
         <span class="btn-text-subtle">[수정]</span>
+      </div>
+
+      <!-- 다중 로봇 군집(Fleet) 제어 선택기 -->
+      <div class="fleet-wrap" id="fleetWrap" title="다중 로봇 연결 및 제어 대상 선택">
+        <select id="fleetTargetSelect" class="fleet-select" onchange="onFleetTargetChange(this.value)">
+          <option value="all">전체 동시 제어</option>
+        </select>
+        <button id="btnAddRobot" class="btn-icon-subtle" onclick="connectAdditionalRobot()" title="새 로봇 추가 연결 (+)">
+          <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        </button>
+        <span id="fleetCountBadge" class="fleet-count-badge">0대</span>
       </div>
     </div>
 
@@ -717,39 +756,46 @@
     </nav>
 
     <div class="header-actions">
-      <!-- UI Resolution / Scale Controller -->
-      <div class="scale-selector" title="PC 화면 해상도 조절">
-        <span class="scale-label">화면</span>
-        <button id="scale100" class="btn-scale active" onclick="setAppScale(1.0)">100%</button>
-        <button id="scale120" class="btn-scale" onclick="setAppScale(1.2)">120%</button>
-        <button id="scale140" class="btn-scale" onclick="setAppScale(1.4)">140%</button>
-      </div>
-
       <div id="statusBadge" class="status-badge">
         <span class="status-dot"></span>
         <span id="statusText">연결 대기</span>
       </div>
 
-      <button id="btnWakeLock" class="btn-action-text" onclick="toggleWakeLock()" title="화면 꺼짐 방지 토글">화면 유지</button>
-      <button class="btn-action-text" onclick="toggleFullscreen()" title="전체 화면 토글">전체 화면</button>
-      <button class="btn-action-text" onclick="toggleTheme()" id="themeBtnText" title="테마 전환">다크 모드</button>
-      <span id="themeIcon" style="display:none;"></span>
+      <!-- 화면 유지 (Wake Lock) SVG 아이콘 -->
+      <button id="btnWakeLock" class="btn-icon-subtle" onclick="toggleWakeLock()" title="화면 꺼짐 방지 토글">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>
+      </button>
+
+      <!-- 전체 화면 SVG 아이콘 -->
+      <button id="btnFullscreen" class="btn-icon-subtle" onclick="toggleFullscreen()" title="전체 화면 토글">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path></svg>
+      </button>
+
+      <!-- 테마 토글 (라이트/다크) SVG 아이콘 -->
+      <button id="themeToggleBtn" class="btn-icon-subtle" onclick="toggleTheme()" title="라이트/다크 테마 전환">
+        <span id="themeIcon" style="display:inline-flex; align-items:center; justify-content:center;">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+        </span>
+      </button>
+
       <button id="btnConnect" class="btn-action primary">연결</button>
     </div>
   </header>
 
-  <!-- ================= 2행: 통합 상태 & 텔레메트리 스트립 (3행 디아그노스틱스 + 4행 HUD 결합) ================= -->
-  <div class="unified-hud-strip">
+  <!-- ================= 2행: 단일 행 통합 상태 스트립 (텔레메트리 HUD + 센서/기기 진단 칩 1줄 통합) ================= -->
+  <div class="unified-status-bar">
     <!-- 실시간 HUD 텔레메트리 -->
-    <div class="hud-group">
+    <div class="status-telemetry-group">
       <div class="hud-item"><span class="hud-label">속도율</span><span id="hudDrive" class="hud-val">0/0</span></div>
       <div class="hud-item"><span class="hud-label">자이로 각도</span><span id="hudPitch" class="hud-val">0.0°</span></div>
       <div class="hud-item"><span class="hud-label">스피커 볼륨</span><span id="hudVolume" class="hud-val">10</span></div>
       <div class="hud-item"><span class="hud-label">입력 소스</span><span id="hudInput" class="hud-val">터치</span></div>
     </div>
 
+    <div class="status-divider"></div>
+
     <!-- 기기/센서 진단 상태 칩 -->
-    <div class="diag-group">
+    <div class="status-diag-group">
       <span class="diag-label">센서 상태:</span>
       <div id="chipBLE" class="diag-chip">BLE 블루투스</div>
       <div id="chipAudio" class="diag-chip">웹 오디오</div>
@@ -1101,22 +1147,6 @@
     </div>
   </section>
 
-      <div class="vision-container">
-        <video id="visionVideo" playsinline muted autoplay></video>
-        <canvas id="visionCanvas"></canvas>
-      </div>
-
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
-        <div style="font-size:0.78rem; color:var(--text-muted);">
-          인식된 명령: <strong id="visionCmdText" style="color:var(--primary); font-size:0.9rem;">정지</strong>
-        </div>
-        <span style="font-size:0.7rem; color:var(--text-dim);">
-          포즈 모드: 좌/우 기울임(회전), 숙이기(후진), 세우기(전진)
-        </span>
-      </div>
-    </div>
-  </section>
-
   <!-- Rename Modal -->
   <div id="renameModal" class="modal-overlay">
     <div class="modal-card">
@@ -1138,38 +1168,34 @@
   <script src="vision-ai.js"></script>
 
   <script>
-    // Theme Management (Default to Light Mode)
+    // Theme Management (Light Mode Default + Dynamic SVG Icon)
+    function updateThemeIcon(mode) {
+      const iconWrap = document.getElementById('themeIcon');
+      if (!iconWrap) return;
+      if (mode === 'dark') {
+        // Sun icon for Dark Mode (click to switch to Light)
+        iconWrap.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"></circle><line x1="12" y1="1" x2="12" y2="3"></line><line x1="12" y1="21" x2="12" y2="23"></line><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"></line><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"></line><line x1="1" y1="12" x2="3" y2="12"></line><line x1="21" y1="12" x2="23" y2="12"></line><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"></line><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"></line></svg>';
+      } else {
+        // Moon icon for Light Mode (click to switch to Dark)
+        iconWrap.innerHTML = '<svg class="icon" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>';
+      }
+    }
+
     function toggleTheme() {
       const html = document.documentElement;
       const current = html.getAttribute('data-theme') || 'light';
       const next = current === 'light' ? 'dark' : 'light';
       html.setAttribute('data-theme', next);
       localStorage.setItem('mi_theme', next);
-      const btn = document.getElementById('themeBtnText');
-      if (btn) btn.textContent = next === 'dark' ? '라이트 모드' : '다크 모드';
+      updateThemeIcon(next);
+      haptic(15);
     }
     const savedTheme = localStorage.getItem('mi_theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
-    const initialThemeBtn = document.getElementById('themeBtnText');
-    if (initialThemeBtn) initialThemeBtn.textContent = savedTheme === 'dark' ? '라이트 모드' : '다크 모드';
+    updateThemeIcon(savedTheme);
 
-    // Resolution & Screen Scaling Controller (Responsive PC & Mobile)
-    function setAppScale(factor) {
-      document.documentElement.style.fontSize = `${16 * factor}px`;
-      localStorage.setItem('mi_robot_scale', factor);
-      [1.0, 1.2, 1.4].forEach(f => {
-        const id = `scale${Math.round(f * 100)}`;
-        const btn = document.getElementById(id);
-        if (btn) btn.classList.toggle('active', Math.abs(f - factor) < 0.05);
-      });
-    }
-    const savedScale = parseFloat(localStorage.getItem('mi_robot_scale')) || 1.0;
-    if (savedScale !== 1.0) {
-      setAppScale(savedScale);
-    }
-
-    // Initialize Global Controllers
-    const robot = new MiRobotBLE();
+    // Initialize Global Controllers (MiRobotFleet manages multiple robots with uniform API)
+    const robot = (typeof MiRobotFleet !== 'undefined') ? new MiRobotFleet() : new MiRobotBLE();
     const aliasMgr = new RobotAliasManager();
     const piano = new PianoEngine();
     const ml = new SensorPatternML();
@@ -1178,6 +1204,54 @@
     window.robot = robot;
     window.piano = piano;
     window.ml = ml;
+
+    // Multi-Robot Fleet Handler
+    function onFleetTargetChange(val) {
+      if (robot.setActiveTarget) {
+        robot.setActiveTarget(val);
+        haptic(15);
+      }
+    }
+
+    async function connectAdditionalRobot() {
+      try {
+        if (robot.connectNew) {
+          await robot.connectNew();
+        } else {
+          await robot.connect();
+        }
+      } catch (e) {
+        alert('새 로봇 추가 연결 안내:\n' + e.message);
+      }
+    }
+
+    function updateFleetUI(fleetInfo) {
+      const count = fleetInfo?.count ?? (robot.connectedCount || (robot.isConnected ? 1 : 0));
+      const countBadge = document.getElementById('fleetCountBadge');
+      if (countBadge) countBadge.textContent = `${count}대`;
+
+      const sel = document.getElementById('fleetTargetSelect');
+      if (sel && robot.getRobotList) {
+        const list = robot.getRobotList();
+        const prevVal = sel.value;
+        sel.innerHTML = '<option value="all">전체 동시 제어 (' + count + '대)</option>';
+        list.forEach((r, idx) => {
+          const opt = document.createElement('option');
+          opt.value = r.id;
+          opt.textContent = `${aliasMgr.getName(r.id, r.name || `로봇 ${idx + 1}`)} (${r.connected ? '연결' : '대기'})`;
+          sel.appendChild(opt);
+        });
+        if (prevVal && [...sel.options].some(o => o.value === prevVal)) {
+          sel.value = prevVal;
+        } else {
+          sel.value = 'all';
+        }
+      }
+    }
+
+    robot.addEventListener('fleetchange', (e) => {
+      updateFleetUI(e.detail);
+    });
 
     // Unlock Audio Context on First Touch
     document.addEventListener('pointerdown', () => {
@@ -1449,6 +1523,11 @@
       }
       haptic(20);
     }
+
+    document.addEventListener('fullscreenchange', () => {
+      const btn = document.getElementById('btnFullscreen');
+      if (btn) btn.classList.toggle('primary', !!document.fullscreenElement);
+    });
 
     // 4.2 Voice Assistant Controller (Web Speech API)
     let voiceRec = null;

@@ -467,9 +467,131 @@ class MiRobotBLE extends EventTarget {
   }
 }
 
+/**
+ * Multi-Robot Fleet Manager
+ * Supports simultaneous fleet control ("all") and individual robot targeting
+ */
+class MiRobotFleet extends EventTarget {
+  constructor() {
+    super();
+    this.robots = [];
+    this.activeTarget = 'all';
+  }
+
+  get isConnected() {
+    return this.robots.some(r => r.isConnected);
+  }
+
+  get connectedCount() {
+    return this.robots.filter(r => r.isConnected).length;
+  }
+
+  get device() {
+    const target = this.getTargetRobot();
+    return target ? target.device : null;
+  }
+
+  get telemetry() {
+    const target = this.getTargetRobot();
+    return target ? target.telemetry : { pitch: 0, roll: 0, yaw: 0, speed: 0, leftSpeed: 0, rightSpeed: 0 };
+  }
+
+  getTargetRobot() {
+    if (this.robots.length === 0) return null;
+    if (this.activeTarget === 'all') return this.robots[0];
+    return this.robots.find(r => r.device && r.device.id === this.activeTarget) || this.robots[0];
+  }
+
+  async connectNew() {
+    const r = new MiRobotBLE();
+    await r.connect();
+    this.robots.push(r);
+
+    r.addEventListener('telemetry', (e) => {
+      if (this.activeTarget === 'all' || (r.device && r.device.id === this.activeTarget)) {
+        this.dispatchEvent(new CustomEvent('telemetry', { detail: e.detail }));
+      }
+    });
+
+    r.addEventListener('connectionchange', (e) => {
+      this.dispatchEvent(new CustomEvent('fleetchange', { detail: { count: this.connectedCount, robots: this.getRobotList() } }));
+      this.dispatchEvent(new CustomEvent('connectionchange', { detail: { connected: this.isConnected, deviceName: r.device?.name || 'Mi Robot' } }));
+    });
+
+    this.dispatchEvent(new CustomEvent('fleetchange', { detail: { count: this.connectedCount, robots: this.getRobotList() } }));
+    return r;
+  }
+
+  async connect() {
+    return this.connectNew();
+  }
+
+  async disconnect() {
+    for (const r of this.robots) {
+      await r.disconnect();
+    }
+    this.robots = [];
+    this.dispatchEvent(new CustomEvent('fleetchange', { detail: { count: 0, robots: [] } }));
+    this.dispatchEvent(new CustomEvent('connectionchange', { detail: { connected: false } }));
+  }
+
+  getRobotList() {
+    return this.robots.map((r, i) => ({
+      id: r.device?.id || `robot_${i}`,
+      name: r.device?.name || `로봇 ${i + 1}`,
+      connected: r.isConnected
+    }));
+  }
+
+  setDrive(x, y) {
+    if (this.activeTarget === 'all') {
+      this.robots.forEach(r => r.setDrive(x, y));
+    } else {
+      const target = this.getTargetRobot();
+      if (target) target.setDrive(x, y);
+    }
+  }
+
+  setMotors(left, right) {
+    if (this.activeTarget === 'all') {
+      this.robots.forEach(r => r.setMotors(left, right));
+    } else {
+      const target = this.getTargetRobot();
+      if (target) target.setMotors(left, right);
+    }
+  }
+
+  stop() {
+    this.robots.forEach(r => r.stop());
+  }
+
+  sendStop() {
+    this.robots.forEach(r => r.sendStop());
+  }
+
+  playTone(noteId) {
+    if (this.activeTarget === 'all') {
+      this.robots.forEach(r => r.playTone(noteId));
+    } else {
+      const target = this.getTargetRobot();
+      if (target) target.playTone(noteId);
+    }
+  }
+
+  calibrateBalance() {
+    if (this.activeTarget === 'all') {
+      this.robots.forEach(r => r.calibrateBalance());
+    } else {
+      const target = this.getTargetRobot();
+      if (target) target.calibrateBalance();
+    }
+  }
+}
+
 if (typeof window !== 'undefined') {
   window.MiRobotBLE = MiRobotBLE;
+  window.MiRobotFleet = MiRobotFleet;
 }
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = MiRobotBLE;
+  module.exports = { MiRobotBLE, MiRobotFleet };
 }
