@@ -944,34 +944,24 @@
       const el = document.getElementById(id);
       if (el) el.className = `diag-chip ${ok ? 'ok' : 'disabled'}`;
     };
-    updateChip('chipBLE', DeviceCapability.hasBluetooth);
-    updateChip('chipAudio', DeviceCapability.hasWebAudio);
-    updateChip('chipCamera', DeviceCapability.hasCamera);
-    updateChip('chipGamepad', DeviceCapability.hasGamepad);
-    updateChip('chipTouch', DeviceCapability.hasTouch);
+    const caps = window.DeviceCapability || {};
+    updateChip('chipBLE', Boolean(caps.hasBluetooth));
+    updateChip('chipAudio', Boolean(caps.hasWebAudio));
+    updateChip('chipCamera', Boolean(caps.hasCamera));
+    updateChip('chipGamepad', Boolean(caps.hasGamepad));
+    updateChip('chipTouch', Boolean(caps.hasTouch));
 
     // 2. Tab Navigation
     function setDriveMode(mode) {
-      document.getElementById('joystickView').style.display = (mode === 'joystick') ? 'flex' : 'none';
-      document.getElementById('dpadView').style.display = (mode === 'dpad') ? 'grid' : 'none';
+      const joy = document.getElementById('joystickView');
+      const dpad = document.getElementById('dpadView');
+      if (joy) joy.style.display = (mode === 'joystick') ? 'flex' : 'none';
+      if (dpad) dpad.style.display = (mode === 'dpad') ? 'grid' : 'none';
       robot.stop();
     }
 
-    let visionActive = false;
+    var visionActive = false;
     function switchStudioTab(tabId, btnEl) {
-      document.querySelectorAll('.studio-tab-btn').forEach(b => b.classList.remove('active'));
-      document.querySelectorAll('.tab-section').forEach(s => s.classList.remove('active'));
-
-      const targetBtn = btnEl || (typeof event !== 'undefined' ? event?.currentTarget : null) || document.querySelector(`.studio-tab-btn[onclick*="${tabId}"]`);
-      if (targetBtn && targetBtn.classList) targetBtn.classList.add('active');
-
-      if (tabId !== 'vision' && visionActive) {
-        visionAI.stop();
-        visionActive = false;
-        const vBtn = document.getElementById('btnToggleVision');
-        if (vBtn) vBtn.textContent = '카메라 켜기';
-      }
-
       const map = {
         control: 'tabSecControl',
         balance: 'tabSecBalance',
@@ -979,7 +969,28 @@
         ml: 'tabSecML',
         vision: 'tabSecVision'
       };
-      if (map[tabId]) document.getElementById(map[tabId]).classList.add('active');
+
+      // Always activate target section first to prevent blank screen
+      const targetSecId = map[tabId] || 'tabSecControl';
+      document.querySelectorAll('.tab-section').forEach(s => {
+        if (s.id === targetSecId) s.classList.add('active');
+        else s.classList.remove('active');
+      });
+
+      document.querySelectorAll('.studio-tab-btn').forEach(b => b.classList.remove('active'));
+      const targetBtn = btnEl || (typeof event !== 'undefined' ? event?.currentTarget : null) || document.querySelector(`.studio-tab-btn[onclick*="${tabId}"]`);
+      if (targetBtn && targetBtn.classList) targetBtn.classList.add('active');
+
+      if (tabId !== 'vision' && visionActive && typeof visionAI !== 'undefined') {
+        try {
+          visionAI.stop();
+          visionActive = false;
+          const vBtn = document.getElementById('btnToggleVision');
+          if (vBtn) vBtn.textContent = '카메라 켜기';
+        } catch (e) {
+          console.warn('Vision stop error:', e);
+        }
+      }
     }
 
     // 3. Rename Modal

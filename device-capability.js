@@ -98,3 +98,32 @@ class DeviceCapabilityDetector {
 }
 
 window.DeviceCapabilityDetector = DeviceCapabilityDetector;
+
+// Global singleton instance for easy status probing
+window.DeviceCapability = {
+  get hasBluetooth() {
+    return typeof navigator !== 'undefined' && 'bluetooth' in navigator;
+  },
+  get hasWebAudio() {
+    return typeof window !== 'undefined' && !!(window.AudioContext || window.webkitAudioContext);
+  },
+  get hasCamera() {
+    return typeof navigator !== 'undefined' && !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+  },
+  get hasGamepad() {
+    return typeof navigator !== 'undefined' && 'getGamepads' in navigator;
+  },
+  get hasTouch() {
+    return typeof window !== 'undefined' && ('ontouchstart' in window || (navigator.maxTouchPoints > 0));
+  },
+  get hasVibrate() {
+    return typeof navigator !== 'undefined' && 'vibrate' in navigator;
+  },
+  get hasWakeLock() {
+    return typeof navigator !== 'undefined' && 'wakeLock' in navigator;
+  }
+};
+
+if (typeof module !== 'undefined' && module.exports) {
+  module.exports = { DeviceCapabilityDetector, DeviceCapability: window.DeviceCapability };
+}
