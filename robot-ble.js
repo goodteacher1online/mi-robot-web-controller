@@ -333,6 +333,27 @@ class MiRobotBLE extends EventTarget {
     this.dispatchEvent(new CustomEvent('drive', { detail: { x: this.axisX, y: this.axisY } }));
   }
 
+  /**
+   * Dual Individual Motor Speed Control (-100% to +100%)
+   * Maps independent Left & Right motor power to differential drive vectors
+   */
+  setMotors(leftPct, rightPct) {
+    const left = Math.max(-100, Math.min(100, Number(leftPct) || 0));
+    const right = Math.max(-100, Math.min(100, Number(rightPct) || 0));
+
+    // Differential steering conversion:
+    // Forward / reverse throttle (Y): average of both motors
+    // Steering rotation (X): right minus left (positive turns right, negative turns left)
+    const avgThrottle = (left + right) / 2.0;
+    const diffSteer = (right - left) / 2.0;
+
+    const y = 128 + Math.round(avgThrottle * 1.27);
+    const x = 128 + Math.round(diffSteer * 1.27);
+
+    this.setDrive(x, y);
+    this.dispatchEvent(new CustomEvent('motorchange', { detail: { left, right, x, y } }));
+  }
+
   stop() {
     this.axisX = 128;
     this.axisY = 128;
