@@ -578,6 +578,12 @@
         <span class="status-dot"></span>
         <span id="statusText">연결 대기</span>
       </div>
+      <button id="btnWakeLock" class="btn-icon-subtle" onclick="toggleWakeLock()" title="화면 꺼짐 방지 토글">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/><circle cx="12" cy="12" r="4"/></svg>
+      </button>
+      <button class="btn-icon-subtle" onclick="toggleFullscreen()" title="전체 화면 토글">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"/></svg>
+      </button>
       <button class="btn-icon-subtle" onclick="toggleTheme()" title="테마 전환 (라이트/다크)">
         <svg id="themeIcon" class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>
       </button>
@@ -644,10 +650,18 @@
         <button id="btnCreepMode" class="btn-action" onclick="toggleCreepMode()">
           🐢 미세 저속 모드: OFF
         </button>
+        <button id="btnVoiceControl" class="btn-action" onclick="toggleVoiceAssistant()">
+          <svg class="icon-sm" viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2M12 19v4M8 23h8"/></svg>
+          <span id="btnVoiceLabel">음성 명령</span>
+        </button>
         <button id="btnEmergencyStop" class="btn-action danger" style="margin-left:auto;">
           <svg class="icon-sm" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><rect x="9" y="9" width="6" height="6"/></svg>
           비상 정지
         </button>
+      </div>
+
+      <div id="voiceBanner" style="display:none; margin-bottom:12px; padding:10px 14px; background:var(--tab-bg); border:1px solid var(--primary); border-radius:12px; text-align:center;">
+        <span style="font-size:0.8rem; font-weight:700; color:var(--primary);" id="voiceStatusText">🎙️ 음성 인식 대기 중... ("앞으로", "뒤로", "좌회전", "우회전", "멈춰", "학교종", "경적")</span>
       </div>
 
       <div id="joystickView" class="joystick-container">
@@ -678,11 +692,18 @@
   <!-- ================= TAB 2: SELF BALANCING & PID ================= -->
   <section id="tabSecBalance" class="tab-section">
     <div class="card">
-      <div class="card-title">
-        <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg>
-        <span>실시간 자이로 IMU 자세 오실로스코프</span>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+        <div class="card-title" style="margin-bottom:0;">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/></svg>
+          <span>실시간 자이로 IMU 자세 오실로스코프</span>
+        </div>
+        <span id="scopeStability" class="ml-sample-pill" style="font-size:0.72rem; background:rgba(16,185,129,0.15); color:#10b981; font-weight:700;">안정 균형</span>
       </div>
-      <canvas id="scopeCanvas" style="width:100%; height:90px; background:var(--tab-bg); border-radius:10px; border:1px solid var(--card-border);"></canvas>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; font-size:0.75rem;">
+        <span style="color:#2563eb; font-weight:700;">● 피치 (Pitch): <span id="scopePitchVal">0.0°</span></span>
+        <span style="color:#10b981; font-weight:700;">● 롤 (Roll): <span id="scopeRollVal">0.0°</span></span>
+      </div>
+      <canvas id="scopeCanvas" style="width:100%; height:105px; background:var(--tab-bg); border-radius:10px; border:1px solid var(--card-border);"></canvas>
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:10px;">
         <span style="font-size:0.8rem; color:var(--text-muted);">수평 기준선 오차 보정</span>
         <button class="btn-action accent" onclick="robot.calibrateBalance()">
@@ -707,15 +728,30 @@
   <!-- ================= TAB 3: 36-KEY PIANO ================= -->
   <section id="tabSecPiano" class="tab-section">
     <div class="card">
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
         <div class="card-title" style="margin-bottom:0;">
           <svg class="icon" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2zM9 4v9M15 4v9"/></svg>
-          <span>피아노 건반 연주 (C4 - B4)</span>
+          <span id="pianoTitle">피아노 건반 (4 옥타브 C4 - B4)</span>
         </div>
-        <button class="btn-action accent" onclick="playDemoSong()">
-          <svg class="icon-sm" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z"/></svg>
-          학교종 멜로디
-        </button>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button id="btnSustain" class="btn-action" onclick="toggleSustain()">
+            🎹 서스테인: OFF
+          </button>
+          <select id="songSelect" class="btn-action accent" onchange="playSelectedSong(this.value)" style="padding-right:24px; cursor:pointer;">
+            <option value="">🎵 연주곡 선택...</option>
+            <option value="school">학교종이 땡땡땡</option>
+            <option value="airplane">비행기</option>
+            <option value="butterfly">나비야</option>
+            <option value="star">작은 별</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Octave Selector Buttons -->
+      <div style="display:flex; justify-content:center; gap:6px; margin-bottom:12px;">
+        <button id="btnOctave3" class="btn-action" onclick="setOctave(3)">3 옥타브 (C3 - B3)</button>
+        <button id="btnOctave4" class="btn-action primary" onclick="setOctave(4)">4 옥타브 (C4 - B4 기본)</button>
+        <button id="btnOctave5" class="btn-action" onclick="setOctave(5)">5 옥타브 (C5 - B5)</button>
       </div>
 
       <div class="piano-wrapper">
@@ -758,10 +794,21 @@
           <svg class="icon" viewBox="0 0 24 24"><path d="M12 2a4 4 0 0 1 4 4c0 1.1-.5 2.1-1.2 2.8L17 11c1.5.3 2.6 1.6 2.6 3.2 0 1.5-.9 2.7-2.2 3.1l.6 2.7H6l.6-2.7C5.3 16.9 4.4 15.7 4.4 14.2c0-1.6 1.1-2.9 2.6-3.2l2.2-2.2C8.5 8.1 8 7.1 8 6a4 4 0 0 1 4-4z"/></svg>
           <span>지도학습 패턴 분류기 (CreateAI)</span>
         </div>
-        <button class="btn-action primary" onclick="promptAddClass()">
-          <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          클래스 추가
-        </button>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="btn-action" onclick="exportMLModel()" title="모델 데이터 다운로드">
+            <svg class="icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            저장
+          </button>
+          <label class="btn-action" style="cursor:pointer; margin:0; display:inline-flex; align-items:center; gap:6px;" title="JSON 모델 파일 불러오기">
+            <svg class="icon-sm" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            불러오기
+            <input type="file" id="fileImportModel" accept=".json" style="display:none;" onchange="importMLModel(event)">
+          </label>
+          <button class="btn-action primary" onclick="promptAddClass()">
+            <svg class="icon-sm" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            클래스 추가
+          </button>
+        </div>
       </div>
       <p style="font-size:0.75rem; color:var(--text-muted); margin-bottom:12px;">
         로봇의 자세나 충격 상태를 각 클래스별로 기록한 뒤, [AI 모델 학습]을 누르면 즉시 머신러닝 모델이 생성되어 동작합니다.
@@ -987,65 +1034,364 @@
       robot.setBalancePID(p, d, sp, si);
     }
 
-    // 5. Telemetry & Oscilloscope
+    // 4.1 Haptics, Fullscreen & Wake Lock
+    function haptic(ms = 15) {
+      if (typeof navigator !== 'undefined' && 'vibrate' in navigator) {
+        try { navigator.vibrate(ms); } catch (e) {}
+      }
+    }
+
+    let wakeLock = null;
+    async function toggleWakeLock() {
+      const btn = document.getElementById('btnWakeLock');
+      if (wakeLock) {
+        try {
+          await wakeLock.release();
+          wakeLock = null;
+          if (btn) {
+            btn.classList.remove('primary');
+            btn.title = '화면 꺼짐 방지: OFF';
+          }
+        } catch (e) {}
+      } else {
+        try {
+          if ('wakeLock' in navigator) {
+            wakeLock = await navigator.wakeLock.request('screen');
+            if (btn) {
+              btn.classList.add('primary');
+              btn.title = '화면 꺼짐 방지: ON';
+            }
+            wakeLock.addEventListener('release', () => {
+              wakeLock = null;
+              if (btn) {
+                btn.classList.remove('primary');
+                btn.title = '화면 꺼짐 방지: OFF';
+              }
+            });
+          }
+        } catch (e) {
+          console.warn('Wake lock error:', e);
+        }
+      }
+      haptic(20);
+    }
+
+    function toggleFullscreen() {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        if (document.exitFullscreen) document.exitFullscreen();
+      }
+      haptic(20);
+    }
+
+    // 4.2 Voice Assistant Controller (Web Speech API)
+    let voiceRec = null;
+    let isVoiceActive = false;
+
+    function toggleVoiceAssistant() {
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      const banner = document.getElementById('voiceBanner');
+      const btn = document.getElementById('btnVoiceControl');
+      const label = document.getElementById('btnVoiceLabel');
+      const status = document.getElementById('voiceStatusText');
+
+      if (!SpeechRec) {
+        alert('현재 브라우저에서 음성 인식(Web Speech API)을 지원하지 않습니다. Chrome 모바일/데스크톱 브라우저를 이용해 주세요.');
+        return;
+      }
+
+      if (isVoiceActive) {
+        if (voiceRec) voiceRec.stop();
+        isVoiceActive = false;
+        if (banner) banner.style.display = 'none';
+        if (btn) btn.classList.remove('primary');
+        if (label) label.textContent = '음성 명령';
+        haptic(20);
+        return;
+      }
+
+      try {
+        voiceRec = new SpeechRec();
+        voiceRec.lang = 'ko-KR';
+        voiceRec.continuous = true;
+        voiceRec.interimResults = false;
+
+        voiceRec.onstart = () => {
+          isVoiceActive = true;
+          if (banner) banner.style.display = 'block';
+          if (btn) btn.classList.add('primary');
+          if (label) label.textContent = '음성 중지';
+          if (status) status.textContent = '🎙️ 음성 인식 중... ("앞으로", "뒤로", "좌회전", "우회전", "멈춰", "학교종", "경적")';
+          haptic([30, 50, 30]);
+        };
+
+        voiceRec.onresult = (e) => {
+          const last = e.results[e.results.length - 1];
+          const text = last[0].transcript.trim().toLowerCase();
+          handleVoiceCommand(text);
+        };
+
+        voiceRec.onerror = (e) => {
+          console.warn('Speech error:', e.error);
+        };
+
+        voiceRec.onend = () => {
+          if (isVoiceActive) {
+            try { voiceRec.start(); } catch (err) {}
+          }
+        };
+
+        voiceRec.start();
+      } catch (err) {
+        console.error('Voice start error:', err);
+      }
+    }
+
+    function handleVoiceCommand(phrase) {
+      const status = document.getElementById('voiceStatusText');
+      haptic(25);
+      if (status) status.textContent = `🗣️ 인식됨: "${phrase}"`;
+
+      const hi = 210, lo = 46;
+
+      if (phrase.includes('앞') || phrase.includes('전진')) {
+        robot.setDrive(128, hi);
+        setTimeout(() => { if (isVoiceActive) robot.stop(); }, 1800);
+        if (status) status.textContent = `🚀 [전진] 1.8초 주행`;
+      } else if (phrase.includes('뒤') || phrase.includes('후진')) {
+        robot.setDrive(128, lo);
+        setTimeout(() => { if (isVoiceActive) robot.stop(); }, 1800);
+        if (status) status.textContent = `🔙 [후진] 1.8초 주행`;
+      } else if (phrase.includes('왼') || phrase.includes('좌회전')) {
+        robot.setDrive(lo, 128);
+        setTimeout(() => { if (isVoiceActive) robot.stop(); }, 1200);
+        if (status) status.textContent = `↩️ [좌회전] 회전 중`;
+      } else if (phrase.includes('오른') || phrase.includes('우회전')) {
+        robot.setDrive(hi, 128);
+        setTimeout(() => { if (isVoiceActive) robot.stop(); }, 1200);
+        if (status) status.textContent = `↪️ [우회전] 회전 중`;
+      } else if (phrase.includes('멈') || phrase.includes('정지') || phrase.includes('스톱')) {
+        robot.sendStop();
+        if (status) status.textContent = `🛑 [정지] 완료`;
+      } else if (phrase.includes('경적') || phrase.includes('빵빵')) {
+        robot.playSound(1);
+        if (status) status.textContent = `📢 [경적 울림]`;
+      } else if (phrase.includes('학교종') || phrase.includes('연주') || phrase.includes('노래')) {
+        playSelectedSong('school');
+        if (status) status.textContent = `🎵 [학교종] 멜로디 연주 중`;
+      } else if (phrase.includes('비행기')) {
+        playSelectedSong('airplane');
+        if (status) status.textContent = `✈️ [비행기] 멜로디 연주 중`;
+      } else if (phrase.includes('나비')) {
+        playSelectedSong('butterfly');
+        if (status) status.textContent = `🦋 [나비야] 멜로디 연주 중`;
+      } else if (phrase.includes('별')) {
+        playSelectedSong('star');
+        if (status) status.textContent = `🌟 [작은 별] 멜로디 연주 중`;
+      } else if (phrase.includes('저속') || phrase.includes('천천히')) {
+        if (!isCreepMode) toggleCreepMode();
+        if (status) status.textContent = `🐢 [미세 저속 모드] 활성화`;
+      }
+    }
+
+    // 5. Telemetry & High-Definition Oscilloscope
     const scopeCanvas = document.getElementById('scopeCanvas');
-    const scopeCtx = scopeCanvas.getContext('2d');
-    const chartHistory = new Array(60).fill(0);
+    const scopeCtx = scopeCanvas ? scopeCanvas.getContext('2d') : null;
+    const pitchHistory = new Array(70).fill(0);
+    const rollHistory = new Array(70).fill(0);
+
+    function resizeScopeCanvas() {
+      if (!scopeCanvas) return;
+      const rect = scopeCanvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      scopeCanvas.width = Math.round(rect.width * dpr);
+      scopeCanvas.height = Math.round(rect.height * dpr);
+      drawScope();
+    }
+    window.addEventListener('resize', resizeScopeCanvas);
+    setTimeout(resizeScopeCanvas, 200);
 
     robot.addEventListener('telemetry', (e) => {
-      const { pitch } = e.detail;
+      const { pitch, roll = 0 } = e.detail;
       hudPitch.textContent = `${pitch.toFixed(1)}°`;
-      chartHistory.push(pitch);
-      chartHistory.shift();
+      const pValEl = document.getElementById('scopePitchVal');
+      const rValEl = document.getElementById('scopeRollVal');
+      const stabEl = document.getElementById('scopeStability');
+
+      if (pValEl) pValEl.textContent = `${pitch.toFixed(1)}°`;
+      if (rValEl) rValEl.textContent = `${roll.toFixed(1)}°`;
+      if (stabEl) {
+        const absDiff = Math.abs(pitch);
+        if (absDiff < 2.5) {
+          stabEl.textContent = '안정 균형';
+          stabEl.style.color = '#10b981';
+          stabEl.style.background = 'rgba(16, 185, 129, 0.15)';
+        } else if (absDiff < 8.0) {
+          stabEl.textContent = '자세 복원 중';
+          stabEl.style.color = '#f59e0b';
+          stabEl.style.background = 'rgba(245, 158, 11, 0.15)';
+        } else {
+          stabEl.textContent = '기울어짐 경고';
+          stabEl.style.color = '#ef4444';
+          stabEl.style.background = 'rgba(239, 68, 68, 0.15)';
+        }
+      }
+
+      pitchHistory.push(pitch);
+      pitchHistory.shift();
+      rollHistory.push(roll);
+      rollHistory.shift();
       drawScope();
     });
 
     function drawScope() {
-      scopeCtx.clearRect(0, 0, scopeCanvas.width, scopeCanvas.height);
-      scopeCtx.strokeStyle = '#2563eb';
-      scopeCtx.lineWidth = 2;
+      if (!scopeCanvas || !scopeCtx) return;
+      const w = scopeCanvas.width;
+      const h = scopeCanvas.height;
+      if (w === 0 || h === 0) return;
+
+      scopeCtx.clearRect(0, 0, w, h);
+
+      // Background Grid
+      scopeCtx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
+      scopeCtx.lineWidth = 1;
+
+      // Horizontal Center Reference Line (0 degrees)
       scopeCtx.beginPath();
-      const step = scopeCanvas.width / (chartHistory.length - 1);
-      for (let i = 0; i < chartHistory.length; i++) {
-        const x = i * step;
-        const y = scopeCanvas.height / 2 - (chartHistory[i] * 1.8);
-        if (i === 0) scopeCtx.moveTo(x, y);
-        else scopeCtx.lineTo(x, y);
-      }
+      scopeCtx.setLineDash([4, 4]);
+      scopeCtx.moveTo(0, h / 2);
+      scopeCtx.lineTo(w, h / 2);
       scopeCtx.stroke();
+      scopeCtx.setLineDash([]);
+
+      // Vertical grid lines
+      for (let x = 0; x < w; x += w / 7) {
+        scopeCtx.beginPath();
+        scopeCtx.moveTo(x, 0);
+        scopeCtx.lineTo(x, h);
+        scopeCtx.stroke();
+      }
+
+      // Draw Trace Function
+      const drawTrace = (data, color, scale = 2.2) => {
+        scopeCtx.strokeStyle = color;
+        scopeCtx.lineWidth = 2.5 * (window.devicePixelRatio || 1);
+        scopeCtx.beginPath();
+        const step = w / (data.length - 1);
+        for (let i = 0; i < data.length; i++) {
+          const x = i * step;
+          const y = h / 2 - (data[i] * scale * (window.devicePixelRatio || 1));
+          if (i === 0) scopeCtx.moveTo(x, y);
+          else scopeCtx.lineTo(x, y);
+        }
+        scopeCtx.stroke();
+      };
+
+      // Roll Trace (Green) & Pitch Trace (Blue)
+      drawTrace(rollHistory, '#10b981', 1.8);
+      drawTrace(pitchHistory, '#2563eb', 2.2);
     }
 
-    // 6. Piano Keyboard Setup
-    document.querySelectorAll('.white-key, .black-key').forEach(key => {
-      const noteId = parseInt(key.dataset.note);
-      const play = (e) => {
-        e.preventDefault();
-        key.classList.add('active');
-        piano.unlockAudio();
-        piano.playNote(noteId);
-        if (robot.isConnected) {
-          robot.playTone(noteId);
+    // 6. Piano Keyboard Setup (3 Octaves & Jukebox)
+    let currentOctave = 4;
+    function setOctave(octave) {
+      currentOctave = octave;
+      [3, 4, 5].forEach(o => {
+        const btn = document.getElementById(`btnOctave${o}`);
+        if (btn) {
+          if (o === octave) btn.classList.add('primary');
+          else btn.classList.remove('primary');
         }
-      };
-      const release = (e) => {
-        e.preventDefault();
-        key.classList.remove('active');
-      };
-      key.addEventListener('pointerdown', play);
-      key.addEventListener('pointerup', release);
-      key.addEventListener('pointerleave', release);
-    });
+      });
+
+      const titleEl = document.getElementById('pianoTitle');
+      if (titleEl) titleEl.textContent = `피아노 건반 (${octave} 옥타브 C${octave} - B${octave})`;
+
+      // Note ID offset: Octave 3 starts at 1, Octave 4 starts at 13, Octave 5 starts at 25
+      const baseNote = (octave - 3) * 12 + 1;
+      const whiteOffsets = [0, 2, 4, 5, 7, 9, 11];
+      const blackOffsets = [1, 3, 6, 8, 10];
+      const noteNames = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+      const blackNames = ['C#', 'D#', 'F#', 'G#', 'A#'];
+
+      document.querySelectorAll('#pianoKeyboard .white-key').forEach((key, idx) => {
+        const nId = baseNote + whiteOffsets[idx];
+        key.dataset.note = nId;
+        key.textContent = `${noteNames[idx]}${octave}`;
+      });
+
+      document.querySelectorAll('#pianoKeyboard .black-key').forEach((key, idx) => {
+        const nId = baseNote + blackOffsets[idx];
+        key.dataset.note = nId;
+        key.textContent = `${blackNames[idx]}${octave}`;
+      });
+
+      haptic(15);
+    }
+
+    let isSustain = false;
+    function toggleSustain() {
+      isSustain = !isSustain;
+      piano.setSustain(isSustain);
+      const btn = document.getElementById('btnSustain');
+      if (btn) {
+        if (isSustain) {
+          btn.classList.add('primary');
+          btn.textContent = '🎹 서스테인: ON';
+        } else {
+          btn.classList.remove('primary');
+          btn.textContent = '🎹 서스테인: OFF';
+        }
+      }
+      haptic(20);
+    }
+
+    async function playSelectedSong(songKey) {
+      if (!songKey) return;
+      const song = piano.songs ? piano.songs[songKey] : null;
+      if (!song) return;
+
+      piano.unlockAudio();
+      haptic(20);
+
+      piano.playMelody(song.notes, song.tempo, (noteId) => {
+        const key = document.querySelector(`.white-key[data-note="${noteId}"], .black-key[data-note="${noteId}"]`);
+        if (key) {
+          key.classList.add('active');
+          setTimeout(() => key.classList.remove('active'), song.tempo * 0.7);
+        }
+        if (robot.isConnected) robot.playTone(noteId);
+      });
+    }
 
     function playDemoSong() {
-      // Sol Sol La La Sol Sol Mi (20, 20, 22, 22, 20, 20, 17)
-      piano.unlockAudio();
-      piano.playMelody([20, 20, 22, 22, 20, 20, 17, 20, 20, 17, 17, 15], 300);
-      if (robot.isConnected) {
-        [20, 20, 22, 22, 20, 20, 17, 20, 20, 17, 17, 15].forEach((n, idx) => {
-          setTimeout(() => robot.playTone(n), idx * 300);
-        });
-      }
+      playSelectedSong('school');
     }
+
+    function bindPianoKeys() {
+      document.querySelectorAll('.white-key, .black-key').forEach(key => {
+        const play = (e) => {
+          e.preventDefault();
+          key.classList.add('active');
+          piano.unlockAudio();
+          const noteId = parseInt(key.dataset.note);
+          piano.playNote(noteId);
+          if (robot.isConnected) {
+            robot.playTone(noteId);
+          }
+          haptic(12);
+        };
+        const release = (e) => {
+          e.preventDefault();
+          key.classList.remove('active');
+        };
+        key.addEventListener('pointerdown', play);
+        key.addEventListener('pointerup', release);
+        key.addEventListener('pointerleave', release);
+      });
+    }
+    bindPianoKeys();
 
     // 7. Interactive Supervised ML UI (Teachable Machine Style)
     function renderMLClasses() {
@@ -1105,6 +1451,7 @@
           e.preventDefault();
           btn.classList.remove('sampling');
           if (sampleTimer) clearInterval(sampleTimer);
+          saveMLToStorage();
           renderMLClasses();
         };
         btn.addEventListener('pointerdown', start);
@@ -1130,6 +1477,7 @@
       const name = prompt('새로운 AI 분류 클래스 이름을 입력하세요:', '특정 동작');
       if (name && name.trim()) {
         ml.addClass(name);
+        saveMLToStorage();
         renderMLClasses();
       }
     }
@@ -1137,6 +1485,7 @@
     function deleteMLClass(id) {
       if (confirm('이 클래스와 수집된 모든 샘플을 삭제하시겠습니까?')) {
         ml.removeClass(id);
+        saveMLToStorage();
         renderMLClasses();
       }
     }
@@ -1145,9 +1494,60 @@
       ml.setAction(id, action);
     }
 
+    function exportMLModel() {
+      haptic(20);
+      const json = ml.exportModelJson();
+      const blob = new Blob([json], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `mi-robot-ml-model-${Date.now()}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function importMLModel(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          ml.importModelJson(e.target.result);
+          loadMLFromStorage();
+    renderMLClasses();
+          saveMLToStorage();
+          haptic([40, 60, 40]);
+          alert(`✅ 머신러닝 모델 로드 성공!\n클래스 수: ${ml.classes.length}개\n샘플 수: ${ml.dataset.length}개`);
+          document.getElementById('mlPrediction').textContent = '가져온 모델 활성화 (실시간 추론 중)';
+        } catch (err) {
+          alert('❌ 모델 파일을 불러오는 중 오류가 발생했습니다: ' + err.message);
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = '';
+    }
+
+    function saveMLToStorage() {
+      try {
+        localStorage.setItem('mi_robot_ml_dataset', ml.exportModelJson());
+      } catch (e) {}
+    }
+
+    function loadMLFromStorage() {
+      try {
+        const saved = localStorage.getItem('mi_robot_ml_dataset');
+        if (saved) {
+          ml.importModelJson(saved);
+        }
+      } catch (e) {}
+    }
+
     function trainMLModel() {
       try {
         const info = ml.train();
+        saveMLToStorage();
+        haptic([40, 60, 40]);
         alert(`🎉 AI 모델 생성 완료!\n- 클래스: ${info.classCount}개\n- 총 샘플: ${info.sampleCount}개\n- 생성 시각: ${info.trainedAt}`);
         document.getElementById('mlPrediction').textContent = '모델 활성화 (실시간 추론 중)';
       } catch (err) {
@@ -1190,6 +1590,7 @@
       else if (act === 'backward') robot.setDrive(128, 80);
     }
 
+    loadMLFromStorage();
     renderMLClasses();
 
     // 8. Vision AI Setup (Hand & Body Pose)
@@ -1337,13 +1738,14 @@
     });
 
     document.getElementById('btnEmergencyStop').addEventListener('click', () => {
+      haptic([50, 70, 50]);
       robot.sendStop();
       stopJoy();
     });
 
-    // Keyboard Shortcuts (<kbd>WASD</kbd>, <kbd>Space</kbd>)
+    // Keyboard Shortcuts (<kbd>WASD</kbd>, <kbd>Space</kbd>, and Piano keys)
     window.addEventListener('keydown', (e) => {
-      if (e.target.tagName === 'INPUT') return;
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
       hudInput.textContent = '키보드';
       const key = e.key.toLowerCase();
       const sliderPct = parseInt(document.getElementById('speedSlider').value) / 100;
@@ -1357,14 +1759,35 @@
       else if (key === 's') robot.setDrive(128, lo);
       else if (key === 'a') robot.setDrive(lo, 128);
       else if (key === 'd') robot.setDrive(hi, 128);
-      else if (key === ' ') { robot.sendStop(); stopJoy(); }
+      else if (key === ' ') { haptic(30); robot.sendStop(); stopJoy(); }
 
-      // Piano keyboard notes (a, s, d, f, g, h, j)
-      const pianoMap = { 'a': 13, 's': 15, 'd': 17, 'f': 18, 'g': 20, 'h': 22, 'j': 24 };
-      if (pianoMap[key]) {
+      // Piano keyboard notes linked with currentOctave
+      const baseNote = (currentOctave - 3) * 12 + 1;
+      const pianoMap = {
+        'a': baseNote,
+        'w': baseNote + 1,
+        's': baseNote + 2,
+        'e': baseNote + 3,
+        'd': baseNote + 4,
+        'f': baseNote + 5,
+        't': baseNote + 6,
+        'g': baseNote + 7,
+        'y': baseNote + 8,
+        'h': baseNote + 9,
+        'u': baseNote + 10,
+        'j': baseNote + 11
+      };
+
+      if (pianoMap[key] !== undefined) {
+        const noteId = pianoMap[key];
         piano.unlockAudio();
-        piano.playNote(pianoMap[key]);
-        if (robot.isConnected) robot.playTone(pianoMap[key]);
+        piano.playNote(noteId);
+        if (robot.isConnected) robot.playTone(noteId);
+        const kEl = document.querySelector(`.white-key[data-note="${noteId}"], .black-key[data-note="${noteId}"]`);
+        if (kEl) {
+          kEl.classList.add('active');
+          setTimeout(() => kEl.classList.remove('active'), 180);
+        }
       }
     });
 

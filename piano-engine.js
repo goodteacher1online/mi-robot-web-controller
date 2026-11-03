@@ -9,6 +9,33 @@ class MiPianoEngine {
     this.ctx = null;
     this.audioPool = {};
     this.isUnlocked = false;
+    this.sustain = false;
+    this._stopMelodyFlag = false;
+    this.isPlaying = false;
+
+    // Song Presets
+    this.songs = {
+      school: {
+        title: '학교종이 땡땡땡',
+        tempo: 300,
+        notes: [20, 20, 22, 22, 20, 20, 17, 20, 20, 17, 17, 15]
+      },
+      airplane: {
+        title: '비행기',
+        tempo: 280,
+        notes: [17, 15, 13, 15, 17, 17, 17, 15, 15, 15, 17, 20, 20, 17, 15, 13, 15, 17, 17, 17, 15, 15, 17, 15, 13]
+      },
+      butterfly: {
+        title: '나비야',
+        tempo: 320,
+        notes: [20, 17, 17, 18, 15, 15, 13, 15, 17, 18, 20, 20, 20, 20, 17, 17, 18, 15, 15, 13, 17, 20, 20, 17]
+      },
+      star: {
+        title: '작은 별',
+        tempo: 340,
+        notes: [13, 13, 20, 20, 22, 22, 20, 18, 18, 17, 17, 15, 15, 13]
+      }
+    };
 
     // 36 Note Map (3 Octaves: C3 to B5)
     this.notes = [
@@ -86,6 +113,10 @@ class MiPianoEngine {
     }
   }
 
+  setSustain(enabled) {
+    this.sustain = !!enabled;
+  }
+
   playSynth(freq) {
     this.unlockAudio();
     if (!this.ctx) return;
@@ -93,33 +124,48 @@ class MiPianoEngine {
     try {
       const osc = this.ctx.createOscillator();
       const gain = this.ctx.createGain();
+      const duration = this.sustain ? 2.2 : 1.2;
 
       osc.type = 'triangle';
       osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
 
       gain.gain.setValueAtTime(0.001, this.ctx.currentTime);
       gain.gain.exponentialRampToValueAtTime(0.7, this.ctx.currentTime + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + 1.2);
+      gain.gain.exponentialRampToValueAtTime(0.0001, this.ctx.currentTime + duration);
 
       osc.connect(gain);
       gain.connect(this.ctx.destination);
 
       osc.start();
-      osc.stop(this.ctx.currentTime + 1.2);
+      osc.stop(this.ctx.currentTime + duration);
     } catch (e) {
       console.warn('Synth error:', e);
     }
   }
 
+  stopMelody() {
+    this._stopMelodyFlag = true;
+    this.isPlaying = false;
+  }
+
   /**
    * Auto melody sequencer (Demo songs)
    */
-  async playMelody(notesArr, intervalMs = 280) {
+  async playMelody(notesArr, intervalMs = 280, onNotePlayed = null) {
     this.unlockAudio();
+    this._stopMelodyFlag = false;
+    this.isPlaying = true;
+
     for (const noteId of notesArr) {
+      if (this._stopMelodyFlag) break;
       this.playNote(noteId);
+      if (typeof onNotePlayed === 'function') {
+        onNotePlayed(noteId);
+      }
       await new Promise(r => setTimeout(r, intervalMs));
     }
+
+    this.isPlaying = false;
   }
 }
 

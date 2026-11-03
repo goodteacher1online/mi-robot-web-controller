@@ -193,6 +193,38 @@ class SensorPatternML {
     const action = this.getAction(topClass);
     return { className: topClass, confidence, action };
   }
+
+  exportModelJson() {
+    return JSON.stringify({
+      version: '1.0',
+      exportedAt: new Date().toISOString(),
+      classes: this.classes,
+      dataset: this.dataset,
+      isTrained: this.isTrained,
+      modelInfo: this.modelInfo
+    }, null, 2);
+  }
+
+  importModelJson(jsonString) {
+    try {
+      const data = JSON.parse(jsonString);
+      if (!Array.isArray(data.classes) || !Array.isArray(data.dataset)) {
+        throw new Error('올바르지 않은 모델 파일 형식입니다.');
+      }
+      this.classes = data.classes;
+      this.dataset = data.dataset;
+      if (this.dataset.length > 0) {
+        this.train();
+      } else {
+        this.isTrained = false;
+        this.modelInfo = null;
+      }
+      return true;
+    } catch (e) {
+      console.error('Failed to import ML model:', e);
+      throw e;
+    }
+  }
 }
 
 if (typeof window !== 'undefined') {
