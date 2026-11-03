@@ -364,6 +364,17 @@
     .btn-action.primary { background: var(--primary); color: #ffffff; border-color: var(--primary); }
     .btn-action.primary:hover { background: var(--primary-hover); }
     .btn-action.danger { background: var(--danger-light); color: var(--danger); border-color: rgba(239, 68, 68, 0.3); }
+    .btn-action.emergency-active {
+      background: #dc2626 !important;
+      color: #ffffff !important;
+      border-color: #b91c1c !important;
+      box-shadow: 0 0 20px rgba(220, 38, 38, 0.75) !important;
+      animation: emergencyPulse 0.4s ease infinite alternate;
+    }
+    @keyframes emergencyPulse {
+      from { transform: scale(0.98); }
+      to { transform: scale(1.02); }
+    }
     .btn-action.accent { background: var(--accent-light); color: var(--accent); border-color: rgba(249, 115, 22, 0.3); }
     .btn-action.gradient-train {
       background: linear-gradient(135deg, #2563eb, #7c3aed);
@@ -943,7 +954,7 @@
             <span id="btnVoiceLabel">음성 명령 제어</span>
             <span class="ml-sample-pill">음성</span>
           </button>
-          <button id="btnEmergencyStop" class="btn-action danger" style="width: 100%; padding: 14px; font-size: 0.95rem; font-weight: 800;">
+          <button id="btnEmergencyStop" class="btn-action danger" onclick="triggerEmergencyStop()" style="width: 100%; padding: 14px; font-size: 0.95rem; font-weight: 800; touch-action: manipulation;">
             비상 정지 (STOP)
           </button>
         </div>
@@ -2254,15 +2265,79 @@
       btn.addEventListener('pointerleave', stopDrive);
     });
 
-    document.getElementById('btnEmergencyStop').addEventListener('click', () => {
-      haptic([50, 70, 50]);
-      robot.sendStop();
+    let isEmergencyCooldown = false;
+    async function triggerEmergencyStop() {
+      if (isEmergencyCooldown) return;
+      isEmergencyCooldown = true;
+      setTimeout(() => { isEmergencyCooldown = false; }, 350);
+
+      // 1. Strong tactical haptic vibration alert
+      haptic([80, 50, 80, 50, 120]);
+
+      // 2. Visual feedback on button & HUD
+      const stopBtn = document.getElementById('btnEmergencyStop');
+      if (stopBtn) {
+        stopBtn.classList.add('emergency-active');
+        const origHtml = stopBtn.innerHTML;
+        stopBtn.innerHTML = '🚨 비상 정지 작동! (STOPPED)';
+        setTimeout(() => {
+          stopBtn.classList.remove('emergency-active');
+          stopBtn.innerHTML = origHtml;
+        }, 1200);
+      }
+
+      // 3. Reset Joystick & input display
       stopJoy();
-    });
+
+      // 4. Reset Tank Mode sliders, badges, and variables
+      motorLeftVal = 0;
+      motorRightVal = 0;
+      const badgeL = document.getElementById('motorLeftBadge');
+      const badgeR = document.getElementById('motorRightBadge');
+      const sliderL = document.getElementById('motorLeftSlider');
+      const sliderR = document.getElementById('motorRightSlider');
+      if (badgeL) badgeL.textContent = '0%';
+      if (badgeR) badgeR.textContent = '0%';
+      if (sliderL) sliderL.value = 0;
+      if (sliderR) sliderR.value = 0;
+
+      // 5. Reset D-Pad pressed states
+      document.querySelectorAll('.dpad-btn').forEach(b => b.classList.remove('pressed'));
+
+      // 6. Reset AI Vision status
+      const visionCmd = document.getElementById('visionCmdText');
+      if (visionCmd) visionCmd.textContent = '비상 정지 (HALT)';
+
+      // 7. Update HUD
+      if (hudDrive) hudDrive.textContent = '0/0 (정지)';
+
+      // 8. Transmit high-priority triple burst stop packet over BLE
+      await robot.sendStop();
+    }
+
+    const stopBtnEl = document.getElementById('btnEmergencyStop');
+    if (stopBtnEl) {
+      stopBtnEl.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        triggerEmergencyStop();
+      });
+      stopBtnEl.addEventListener('click', (e) => {
+        e.preventDefault();
+        triggerEmergencyStop();
+      });
+    }
 
     // Keyboard Shortcuts (<kbd>WASD</kbd>, <kbd>Space</kbd>, and Piano keys)
     window.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+
+      // Global Emergency Stop Hotkey: Spacebar
+      if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
+        e.preventDefault();
+        triggerEmergencyStop();
+        return;
+      }
+
       hudInput.textContent = '키보드';
       const key = e.key.toLowerCase();
       const sliderPct = parseInt(document.getElementById('speedSlider').value) / 100;
@@ -2306,7 +2381,10 @@
         else if (key === 's') robot.setDrive(128, lo);
         else if (key === 'a') robot.setDrive(lo, 128);
         else if (key === 'd') robot.setDrive(hi, 128);
-        else if (key === ' ') { haptic(30); robot.sendStop(); stopJoy(); }
+        else if (key === ' ') {
+          e.preventDefault();
+          triggerEmergencyStop();
+        }
       }
     });
 

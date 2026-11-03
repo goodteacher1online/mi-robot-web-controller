@@ -49,6 +49,7 @@ class MiRobotBLE extends EventTarget {
     this._writeQueue = Promise.resolve();
     this._queueDepth = 0;
     this.heartbeatTimer = null;
+    this.isEmergencyStopped = false;
   }
 
   log(msg, level = 'info') {
@@ -328,6 +329,9 @@ class MiRobotBLE extends EventTarget {
   }
 
   setDrive(x, y) {
+    if (this.isEmergencyStopped && (x !== 128 || y !== 128)) {
+      return;
+    }
     this.axisX = Math.max(0, Math.min(255, Math.round(x)));
     this.axisY = Math.max(0, Math.min(255, Math.round(y)));
     this.dispatchEvent(new CustomEvent('drive', { detail: { x: this.axisX, y: this.axisY } }));
@@ -338,6 +342,9 @@ class MiRobotBLE extends EventTarget {
    * Maps independent Left & Right motor power to differential drive vectors
    */
   setMotors(leftPct, rightPct) {
+    if (this.isEmergencyStopped && (leftPct !== 0 || rightPct !== 0)) {
+      return;
+    }
     const left = Math.max(-100, Math.min(100, Number(leftPct) || 0));
     const right = Math.max(-100, Math.min(100, Number(rightPct) || 0));
 
@@ -360,9 +367,47 @@ class MiRobotBLE extends EventTarget {
     this.dispatchEvent(new CustomEvent('drive', { detail: { x: 128, y: 128 } }));
   }
 
+  async writeDirect(bytes) {
+    if (!this.rxChar || !this.isConnected) return;
+    try {
+      if (typeof this.rxChar.writeValueWithoutResponse === 'function') {
+        await this.rxChar.writeValueWithoutResponse(bytes);
+      } else {
+        await this.rxChar.writeValue(bytes);
+      }
+    } catch (e) {
+      try {
+        await this.rxChar.writeValue(bytes);
+      } catch (err2) {
+        console.warn('BLE direct write error:', err2);
+      }
+    }
+  }
+
   async sendStop() {
+    this.isEmergencyStopped = true;
+    setTimeout(() => { this.isEmergencyStopped = false; }, 400);
+
     this.stop();
-    return this.writeRaw(this.buildRockerPacket(128, 128), true);
+    // Flush any backlogged non-stop writes in queue
+    this._writeQueue = Promise.resolve();
+    this._queueDepth = 0;
+
+    if (!this.isConnected || !this.rxChar) return;
+
+    const stopPkt = this.buildRockerPacket(128, 128);
+    this.log('🛑 [비상 정지] 3중 셧다운 패킷 즉각 방출', 'warn');
+
+    // High-priority triple burst (0ms, 25ms, 50ms) to ensure delivery even over noisy 2.4GHz BLE
+    try {
+      await this.writeDirect(stopPkt);
+      await new Promise(r => setTimeout(r, 25));
+      await this.writeDirect(stopPkt);
+      await new Promise(r => setTimeout(r, 25));
+      await this.writeDirect(stopPkt);
+    } catch (e) {
+      console.warn('Emergency stop burst error:', e);
+    }
   }
 
   async playSound(soundId = 1) {
@@ -476,6 +521,7 @@ class MiRobotFleet extends EventTarget {
     super();
     this.robots = [];
     this.activeTarget = 'all';
+    this.isEmergencyStopped = false;
   }
 
   get isConnected() {
@@ -544,6 +590,9 @@ class MiRobotFleet extends EventTarget {
   }
 
   setDrive(x, y) {
+    if (this.isEmergencyStopped && (x !== 128 || y !== 128)) {
+      return;
+    }
     if (this.activeTarget === 'all') {
       this.robots.forEach(r => r.setDrive(x, y));
     } else {
@@ -553,6 +602,9 @@ class MiRobotFleet extends EventTarget {
   }
 
   setMotors(left, right) {
+    if (this.isEmergencyStopped && (left !== 0 || right !== 0)) {
+      return;
+    }
     if (this.activeTarget === 'all') {
       this.robots.forEach(r => r.setMotors(left, right));
     } else {
@@ -562,11 +614,18 @@ class MiRobotFleet extends EventTarget {
   }
 
   stop() {
-    this.robots.forEach(r => r.stop());
+    this.isEmergencyStopped = true;
+    setTimeout(() => { this.isEmergencyStopped = false; }, 400);
+    this.robots.forEach(r => {
+      try { r.stop(); } catch (e) {}
+    });
   }
 
-  sendStop() {
-    this.robots.forEach(r => r.sendStop());
+  async sendStop() {
+    this.isEmergencyStopped = true;
+    setTimeout(() => { this.isEmergencyStopped = false; }, 400);
+    this.stop();
+    return Promise.allSettled(this.robots.map(r => r.sendStop()));
   }
 
   playTone(noteId) {
