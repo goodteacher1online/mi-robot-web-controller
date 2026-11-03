@@ -1,0 +1,8 @@
+Analyze robot-ble.js and index.html in the current directory (C:\Users\user\mi-robot-web-controller).
+Identify:
+1. BLE connection stability issues (e.g. GATT write queue concurrency/race conditions, writeValueWithoutResponse fallback, characteristic notification lifecycle).
+2. Mobile Chrome touch / UX glitches (e.g. pointer capture, touch-action, passive listeners, screen lock / wake lock to prevent display sleep during control).
+3. Safety & fail-safe mechanisms (e.g. heartbeat timeout watchdog on device/app, sending stop before disconnect, auto-reconnect).
+4. PWA offline support: Service Worker missing.
+
+Provide specific, concrete code improvements to apply directly to robot-ble.js and index.html.
