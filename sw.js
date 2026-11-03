@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mi-robot-v2.5';
+const CACHE_NAME = 'mi-robot-v2.6';
 const ASSETS = [
   './',
   './index.html',
