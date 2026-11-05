@@ -741,6 +741,198 @@
       max-width: 360px;
       box-shadow: var(--shadow-lg);
     }
+
+    /* ================= Hardware & Port Section Styles ================= */
+    .port-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 14px;
+      margin-top: 14px;
+    }
+    .port-card {
+      background: var(--tab-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: all 0.2s ease;
+    }
+    .port-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+      box-shadow: var(--shadow);
+    }
+    .port-card.active-port {
+      border: 1.5px solid var(--primary);
+      background: var(--card-bg);
+    }
+    .port-tag {
+      font-size: 0.72rem;
+      font-weight: 800;
+      padding: 3px 8px;
+      border-radius: 6px;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .brick-visual {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      border-radius: 16px;
+      padding: 20px;
+      color: #ffffff;
+      margin-bottom: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .brick-ports-row {
+      display: flex;
+      justify-content: space-around;
+      gap: 10px;
+      margin-top: 14px;
+      flex-wrap: wrap;
+    }
+    .brick-port-jack {
+      background: #334155;
+      border: 2px solid #64748b;
+      border-radius: 10px;
+      padding: 8px 12px;
+      text-align: center;
+      flex: 1;
+      min-width: 120px;
+      max-width: 150px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+    .brick-port-jack:hover, .brick-port-jack.selected {
+      border-color: #38bdf8;
+      background: #1e3a8a;
+    }
+    .jack-label {
+      font-weight: 900;
+      font-size: 0.95rem;
+      color: #38bdf8;
+    }
+    .jack-desc {
+      font-size: 0.68rem;
+      color: #cbd5e1;
+      margin-top: 2px;
+    }
+
+    /* Color Sensor Dashboard */
+    .color-sensor-box {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px;
+      background: var(--tab-bg);
+      border-radius: 12px;
+      border: 1px solid var(--card-border);
+      flex-wrap: wrap;
+    }
+    .color-preview-circle {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      border: 3px solid rgba(255, 255, 255, 0.8);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      flex-shrink: 0;
+      transition: background-color 0.2s ease, border-color 0.2s ease;
+    }
+    .palette-btn {
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 0.76rem;
+      font-weight: 700;
+      border: 1px solid var(--card-border);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--card-bg);
+      color: var(--text);
+      transition: all 0.15s ease;
+    }
+    .palette-btn:hover {
+      transform: scale(1.04);
+      border-color: var(--primary);
+    }
+
+    /* ================= Block Coding Studio Styles ================= */
+    .coding-layout {
+      display: grid;
+      grid-template-columns: 290px 1fr;
+      gap: 16px;
+      margin-top: 14px;
+    }
+    @media (max-width: 860px) {
+      .coding-layout {
+        grid-template-columns: 1fr;
+      }
+    }
+    .palette-group {
+      background: var(--tab-bg);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .palette-group-title {
+      font-size: 0.78rem;
+      font-weight: 800;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .palette-add-btn {
+      width: 100%;
+      padding: 7px 10px;
+      border-radius: 8px;
+      font-size: 0.78rem;
+      font-weight: 700;
+      border: 1px solid var(--card-border);
+      background: var(--card-bg);
+      color: var(--text);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      transition: all 0.15s ease;
+    }
+    .palette-add-btn:hover {
+      background: var(--card-hover);
+      border-color: var(--primary);
+      transform: translateX(3px);
+    }
+    .btn-block-ctrl {
+      background: transparent;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      padding: 4px 7px;
+      font-size: 0.7rem;
+      cursor: pointer;
+      color: var(--text-muted);
+      transition: all 0.15s;
+    }
+    .btn-block-ctrl:hover {
+      color: var(--text);
+      border-color: var(--text-muted);
+    }
+    .btn-block-ctrl.danger:hover {
+      color: var(--danger);
+      border-color: var(--danger);
+    }
+    .block-card.executing {
+      animation: blockPulse 1s infinite alternate;
+    }
+    @keyframes blockPulse {
+      0% { box-shadow: 0 0 6px rgba(37, 99, 235, 0.4); }
+      100% { box-shadow: 0 0 16px rgba(37, 99, 235, 0.85); }
+    }
   </style>
 </head>
 <body>
@@ -773,6 +965,8 @@
       <button class="studio-tab-btn" onclick="switchStudioTab('piano', this)">피아노 연주</button>
       <button class="studio-tab-btn" onclick="switchStudioTab('ml', this)">패턴 AI 학습</button>
       <button class="studio-tab-btn" onclick="switchStudioTab('vision', this)">AI 비전 제어</button>
+      <button class="studio-tab-btn" onclick="switchStudioTab('coding', this)">블록 코딩</button>
+      <button class="studio-tab-btn" onclick="switchStudioTab('hardware', this)">포트 & 센서</button>
     </nav>
 
     <div class="header-actions">
@@ -1184,6 +1378,368 @@
     </div>
   </section>
 
+  <!-- ================= Tab 6: 블록 코딩 스튜디오 (Visual Block Coding) ================= -->
+  <section id="tabSecCoding" class="tab-section">
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h2 style="font-size:1.05rem; font-weight:800; color:var(--text);">비주얼 블록 코딩 스튜디오</h2>
+          <span id="codingStatusBadge" class="ml-sample-pill" style="background:var(--primary-light); color:var(--primary); font-weight:800;">
+            준비 완료 (8개 블록)
+          </span>
+        </div>
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          <select id="blockPresetSelect" onchange="loadCodingPreset(this.value)" style="padding:6px 10px; border-radius:8px; border:1px solid var(--card-border); background:var(--card-bg); color:var(--text); font-size:0.78rem; font-weight:700;">
+            <option value="square">🚗 추천 예제: 사각 패턴 순찰 주행</option>
+            <option value="traffic_light">🚦 추천 예제: 신호등 컬러 감지 주행</option>
+            <option value="line_tracer">〰️ 추천 예제: 라인트레이서 선 추적</option>
+            <option value="melody_march">🎵 추천 예제: 도레미파솔 멜로디 행진</option>
+            <option value="spin_dance">💃 추천 예제: 지그재그 회전 댄스</option>
+          </select>
+          <button id="btnRunBlocks" class="btn-action primary" onclick="startBlockProgram()" style="display:inline-flex; align-items:center; gap:5px;">
+            <svg style="width:14px; height:14px; fill:currentColor;" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            블록 실행
+          </button>
+          <button id="btnStopBlocks" class="btn-action danger" onclick="stopBlockProgram()">
+            ⏹ 중지
+          </button>
+          <button id="btnClearBlocks" class="btn-action" onclick="clearBlockProgram()">
+            🗑 비우기
+          </button>
+          <button id="btnOpenCodingModal" class="btn-action" onclick="openCodingModal()">
+            💾 코드 저장/불러오기
+          </button>
+        </div>
+      </div>
+
+      <!-- Execution Highlight Notice -->
+      <div id="codingLiveBanner" style="display:none; padding:8px 12px; background:var(--primary-light); border:1px solid var(--primary); border-radius:8px; font-size:0.78rem; font-weight:700; color:var(--primary); margin-bottom:12px; align-items:center; justify-content:space-between;">
+        <span id="codingLiveStepText">실행 중: 1번째 블록 동작 중...</span>
+        <button class="btn-action danger" onclick="stopBlockProgram()" style="padding:2px 8px; font-size:0.72rem;">즉시 정지</button>
+      </div>
+
+      <!-- 2-Column Studio Layout -->
+      <div class="coding-layout">
+        <!-- Left: Block Palette Categories -->
+        <div class="block-palette">
+          <!-- 1. Motion -->
+          <div class="palette-group">
+            <div class="palette-group-title">
+              <span style="color:#2563eb;">●</span> 주행 및 모터 동작
+            </div>
+            <button class="palette-add-btn" onclick="addCodingBlock('drive_forward')">
+              <span>▲ 앞으로 주행</span>
+              <span style="color:var(--text-muted); font-size:0.7rem;">+ 추가</span>
+            </button>
+            <button class="palette-add-btn" onclick="addCodingBlock('drive_backward')">
+              <span>▼ 뒤로 주행</span>
+              <span style="color:var(--text-muted); font-size:0.7rem;">+ 추가</span>
+            </button>
+            <button class="palette-add-btn" onclick="addCodingBlock('turn_left')">
+              <span>◀ 왼쪽 회전</span>
+              <span style="color:var(--text-muted); font-size:0.7rem;">+ 추가</span>
+            </button>
+            <button class="palette-add-btn" onclick="addCodingBlock('turn_right')">
+              <span>▶ 오른쪽 회전</span>
+              <span style="color:var(--text-muted); font-size:0.7rem;">+ 추가</span>
+            </button>
+            <button class="palette-add-btn" onclick="addCodingBlock('motor_dual')">
+              <span>⚙️ 개별 모터 출력</span>
+              <span style="color:var(--text-muted); font-size:0.7rem;">+ 추가</span>
+            </button>
+            <button class="palette-add-btn" onclick="addCodingBlock('stop')">
+              <span>🛑 모터 즉시 정지</span>
+              <span style="color:var(--text-muted); font-size:0.7rem;">+ 추가</span>
+            </button>
+          </div>
+
+          <!-- 2. Control -->
+          <div class="palette-group">
+            <div class="palette-group-title">
+              <span style="color:#d97706;">●</span> 흐름 및 시간 제어
+            </div>
+            <button class="palette-add-btn" onclick="addCodingBlock('wait')">
+              <span>⏳ N초 기다리기</span>
+              <span style="color:var(--text-muted); font-size:0.7rem;">+ 추가</span>
+            </button>
+          </div>
+
+          <!-- 3. Sensor -->
+          <div class="palette-group">
+            <div class="palette-group-title">
+              <span style="color:#059669;">●</span> 센서 및 라인트레이서
+            </div>
+            <button class="palette-add-btn" onclick="addCodingBlock('wait_color')">
+              <span>🎨 컬러 센서 감지 대기</span>
+              <span style="color:var(--text-muted); font-size:0.7rem;">+ 추가</span>
+            </button>
+            <button class="palette-add-btn" onclick="addCodingBlock('line_trace_step')">
+              <span>〰️ 라인트레이서 1보 추적</span>
+              <span style="color:var(--text-muted); font-size:0.7rem;">+ 추가</span>
+            </button>
+          </div>
+
+          <!-- 4. Sound -->
+          <div class="palette-group">
+            <div class="palette-group-title">
+              <span style="color:#7c3aed;">●</span> 사운드 및 피아노 음계
+            </div>
+            <button class="palette-add-btn" onclick="addCodingBlock('play_note')">
+              <span>🎹 음계 1음 연주</span>
+              <span style="color:var(--text-muted); font-size:0.7rem;">+ 추가</span>
+            </button>
+            <button class="palette-add-btn" onclick="addCodingBlock('play_fanfare')">
+              <span>🎺 승리 팡파르 연주</span>
+              <span style="color:var(--text-muted); font-size:0.7rem;">+ 추가</span>
+            </button>
+            <button class="palette-add-btn" onclick="addCodingBlock('play_beep')">
+              <span>🔊 경고 비프음 재생</span>
+              <span style="color:var(--text-muted); font-size:0.7rem;">+ 추가</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Right: Block Assembly Canvas List -->
+        <div class="block-workspace">
+          <div style="font-size:0.78rem; font-weight:800; color:var(--text-muted); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+            <span>블록 실행 시퀀스 (순차 실행)</span>
+            <span style="font-size:0.72rem; color:var(--text-muted);">블록 순서 변경: ▲ ▼ | 삭제: ✕</span>
+          </div>
+          <div id="blockWorkspaceList">
+            <!-- Dynamically populated -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= Tab 7: 포트 & 컬러 센서 (Hardware Ports A, B, C, D & Color Sensor) ================= -->
+  <section id="tabSecHardware" class="tab-section">
+    <!-- Card 1: Master Brick Schematic & Port A, B, C, D Architecture -->
+    <div class="card" style="margin-bottom:16px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px;">
+        <div>
+          <h2 style="font-size:1.05rem; font-weight:800; color:var(--text);">샤오미 로봇 메인 컨트롤러: 포트 A, B, C, D 하드웨어 규격</h2>
+          <p style="font-size:0.76rem; color:var(--text-muted); margin-top:2px;">
+            STM32 32-bit 프로세서 및 4개의 Type-C 다기능 고속 시리얼 확장 버스 구조
+          </p>
+        </div>
+        <span class="ml-sample-pill" style="background:var(--success-light); color:var(--success); font-weight:800;">
+          하드웨어 핫플러그 지원
+        </span>
+      </div>
+
+      <!-- Brick Schematic Graphic -->
+      <div class="brick-visual">
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <svg style="width:20px; height:20px; stroke:#38bdf8; fill:none;" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2" ry="2"></rect><circle cx="12" cy="12" r="3"></circle></svg>
+            <span style="font-weight:900; font-size:0.95rem; letter-spacing:0.5px;">MI ROBOT MASTER BRICK (전면 상단부)</span>
+          </div>
+          <span style="font-size:0.72rem; color:#94a3b8; font-family:var(--font-mono);">11.1V 18.3Wh Li-ion | 6축 IMU 내장</span>
+        </div>
+
+        <div class="brick-ports-row">
+          <div id="brickJackA" class="brick-port-jack" onclick="selectPortInfo('A')">
+            <div class="jack-label">PORT A</div>
+            <div class="jack-desc">좌측 구동 모터</div>
+          </div>
+          <div id="brickJackB" class="brick-port-jack" onclick="selectPortInfo('B')">
+            <div class="jack-label">PORT B</div>
+            <div class="jack-desc">우측 구동 모터</div>
+          </div>
+          <div id="brickJackC" class="brick-port-jack selected" onclick="selectPortInfo('C')">
+            <div class="jack-label">PORT C</div>
+            <div class="jack-desc">컬러 센서 (확장 1)</div>
+          </div>
+          <div id="brickJackD" class="brick-port-jack" onclick="selectPortInfo('D')">
+            <div class="jack-label">PORT D</div>
+            <div class="jack-desc">보조 확장 포트 2</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 4 Ports Grid Cards -->
+      <div class="port-grid">
+        <!-- Port A -->
+        <div id="portCardA" class="port-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color:var(--primary); font-size:0.92rem;">포트 A (Port A)</strong>
+            <span class="port-tag" style="background:var(--primary-light); color:var(--primary);">좌측 모터 (기본)</span>
+          </div>
+          <p style="font-size:0.75rem; color:var(--text); line-height:1.5;">
+            • <strong>기본 역할</strong>: 로봇의 좌측 바퀴 감속 서보 모터 구동.<br>
+            • <strong>광학 엔코더</strong>: 1도 미만의 정밀 회전 각도 및 펄스 측정.<br>
+            • <strong>자가 밸런싱</strong>: 2륜 직립 시 실시간 각속도 피드백 루프 형성.<br>
+            • <strong>스펙</strong>: 최대 170 rpm, 최대 토크 220 mN·m 브러시리스 모터.
+          </p>
+        </div>
+
+        <!-- Port B -->
+        <div id="portCardB" class="port-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color:var(--primary); font-size:0.92rem;">포트 B (Port B)</strong>
+            <span class="port-tag" style="background:var(--primary-light); color:var(--primary);">우측 모터 (기본)</span>
+          </div>
+          <p style="font-size:0.75rem; color:var(--text); line-height:1.5;">
+            • <strong>기본 역할</strong>: 로봇의 우측 바퀴 감속 서보 모터 구동.<br>
+            • <strong>대칭 구동</strong>: 포트 A 모터와 함께 차동 조향 및 직진 주행 담당.<br>
+            • <strong>엔코더 일치화</strong>: A/B 펄스 동기화로 미끄러짐 방지 및 직선 주행 보정.<br>
+            • <strong>스펙</strong>: 포트 A와 동일한 고정밀 서보 모터 규격.
+          </p>
+        </div>
+
+        <!-- Port C -->
+        <div id="portCardC" class="port-card active-port">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color:#059669; font-size:0.92rem;">포트 C (Port C) ★</strong>
+            <span class="port-tag" style="background:var(--success-light); color:var(--success);">컬러 센서 기본 장착</span>
+          </div>
+          <p style="font-size:0.75rem; color:var(--text); line-height:1.5;">
+            • <strong>컬러 센서 공식 포트</strong>: 샤오미 공식 컬러 센서를 연결하는 1순위 포트.<br>
+            • <strong>지원 모드</strong>: 8색 컬러 인식 (Type 1) & 흑백 바닥 반사율 (Type 2, 0~100%).<br>
+            • <strong>라인트레이서</strong>: 바닥 검은색 선 감지 시 자율 주행 경로 추적.<br>
+            • <strong>대체 활용</strong>: 초음파 거리 센서 또는 3번 서보 모터 연결 가능.
+          </p>
+        </div>
+
+        <!-- Port D -->
+        <div id="portCardD" class="port-card">
+          <div style="display:flex; justify-content:space-between; align-items:center;">
+            <strong style="color:#7c3aed; font-size:0.92rem;">포트 D (Port D)</strong>
+            <span class="port-tag" style="background:var(--accent-light); color:var(--accent);">보조 확장 / 4번 모터</span>
+          </div>
+          <p style="font-size:0.75rem; color:var(--text); line-height:1.5;">
+            • <strong>기본 역할</strong>: 추가 확장 센서 또는 4번 모터 제어.<br>
+            • <strong>변신 모델 확장</strong>: 탱크 로봇 포탑 회전, 불도저 블레이드 승강, 공룡 꼬리 구동.<br>
+            • <strong>듀얼 센서</strong>: 초음파 센서와 컬러 센서를 동시 구성할 때 보조 센서 포트로 활용.<br>
+            • <strong>인터페이스</strong>: Type-C UART 핀을 통한 자동 디바이스 감지 지원.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Card 2: Interactive Color Sensor & Line Tracer Dashboard -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <h2 style="font-size:1.05rem; font-weight:800; color:var(--text);">컬러 센서 & 라인트레이서 실시간 대시보드</h2>
+          <span id="activePortBadge" class="ml-sample-pill" style="background:var(--success-light); color:var(--success); font-weight:800;">
+            포트 C 연동 중
+          </span>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px;">
+          <label style="font-size:0.78rem; font-weight:700; color:var(--text-muted);">연동 포트 변경:</label>
+          <button class="btn-action primary" id="btnSelectPortC" onclick="switchActiveSensorPort('C')">포트 C</button>
+          <button class="btn-action" id="btnSelectPortD" onclick="switchActiveSensorPort('D')">포트 D</button>
+        </div>
+      </div>
+
+      <!-- Live Color & Line Sensor Readings Box -->
+      <div class="color-sensor-box">
+        <div id="colorPreviewCircle" class="color-preview-circle" style="background:#16a34a;"></div>
+        <div style="flex:1; min-width:200px;">
+          <div style="font-size:0.72rem; color:var(--text-muted); font-weight:700;">실시간 감지 색상 (Color Mode)</div>
+          <div id="colorSensorName" style="font-size:1.3rem; font-weight:900; color:var(--text); margin-top:2px;">
+            초록색 (Green)
+          </div>
+          <div id="colorSensorHex" style="font-size:0.75rem; font-family:var(--font-mono); color:var(--text-muted); margin-top:2px;">
+            HEX: #16a34a | Color ID: 3
+          </div>
+        </div>
+
+        <!-- Grayscale & Line-following Bar -->
+        <div style="flex:1.2; min-width:240px; padding:8px 12px; background:var(--card-bg); border-radius:10px; border:1px solid var(--card-border);">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+            <span style="font-size:0.74rem; font-weight:800; color:var(--text);">라인트레이서 바닥 반사율</span>
+            <span id="lineReflectanceVal" style="font-size:0.8rem; font-weight:800; color:var(--primary); font-family:var(--font-mono);">80%</span>
+          </div>
+          <div class="confidence-meter" style="height:10px; background:var(--tab-bg);">
+            <div id="lineReflectanceBar" class="confidence-fill" style="width:80%; background:linear-gradient(90deg, #1e293b, #38bdf8);"></div>
+          </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:6px; font-size:0.7rem;">
+            <span style="color:#64748b;">0% (검은선 감지)</span>
+            <span id="lineStatusBadge" class="ml-sample-pill" style="padding:2px 8px; font-size:0.68rem; background:var(--tab-bg); color:var(--text);">일반 바닥 (Surface)</span>
+            <span style="color:#64748b;">100% (밝은 바닥)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Virtual Color Palette Simulation / Test Buttons -->
+      <div style="margin-top:16px;">
+        <div style="font-size:0.78rem; font-weight:800; color:var(--text-muted); margin-bottom:8px;">
+          가상 센서 테스트 팔레트 (책상 위에서 색상 카드를 센서에 비추듯 클릭하여 동작 시뮬레이션)
+        </div>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button class="palette-btn" onclick="testSimulateColor(5)">
+            <span style="width:14px; height:14px; border-radius:50%; background:#dc2626;"></span> 빨간색 (Red)
+          </button>
+          <button class="palette-btn" onclick="testSimulateColor(3)">
+            <span style="width:14px; height:14px; border-radius:50%; background:#16a34a;"></span> 초록색 (Green)
+          </button>
+          <button class="palette-btn" onclick="testSimulateColor(4)">
+            <span style="width:14px; height:14px; border-radius:50%; background:#eab308;"></span> 노란색 (Yellow)
+          </button>
+          <button class="palette-btn" onclick="testSimulateColor(2)">
+            <span style="width:14px; height:14px; border-radius:50%; background:#2563eb;"></span> 파란색 (Blue)
+          </button>
+          <button class="palette-btn" onclick="testSimulateColor(6)">
+            <span style="width:14px; height:14px; border-radius:50%; background:#f8fafc; border:1px solid #94a3b8;"></span> 흰색 (White)
+          </button>
+          <button class="palette-btn" onclick="testSimulateColor(1)">
+            <span style="width:14px; height:14px; border-radius:50%; background:#1e293b;"></span> 검은색 선 (Line)
+          </button>
+          <button class="palette-btn" onclick="testSimulateColor(0)">
+            <span style="width:14px; height:14px; border-radius:50%; background:#94a3b8;"></span> 감지 안 됨 (None)
+          </button>
+        </div>
+      </div>
+
+      <!-- Autonomous Sensor Reaction Control Loop -->
+      <div style="margin-top:18px; padding:14px; background:var(--tab-bg); border-radius:12px; border:1px solid var(--card-border);">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:8px;">
+          <div style="display:flex; align-items:center; gap:8px;">
+            <input type="checkbox" id="chkAutoReaction" onchange="toggleAutoReaction(this.checked)" style="width:18px; height:18px; cursor:pointer;">
+            <label for="chkAutoReaction" style="font-size:0.85rem; font-weight:800; cursor:pointer; color:var(--text);">
+              컬러 센서 실시간 자율 반응 제어 활성화 (Auto Reaction Mode)
+            </label>
+          </div>
+          <div style="display:flex; align-items:center; gap:8px;">
+            <span style="font-size:0.75rem; font-weight:700; color:var(--text-muted);">반응 주행 속도:</span>
+            <input type="range" id="sliderReactionSpeed" min="20" max="90" value="50" oninput="updateReactionSpeed(this.value)" style="width:100px; accent-color:var(--primary);">
+            <span id="valReactionSpeed" style="font-size:0.78rem; font-weight:800; color:var(--primary); font-family:var(--font-mono);">50%</span>
+          </div>
+        </div>
+
+        <div style="font-size:0.75rem; color:var(--text-muted); line-height:1.5; margin-top:6px;">
+          • <strong>빨간색 감지</strong>: 즉시 비상 정지 및 경고 알림음 울림.<br>
+          • <strong>초록색 감지</strong>: 설정된 속도로 앞으로 전진 주행.<br>
+          • <strong>노란색 감지</strong>: 저속 서행(25%) 및 비프음 재생.<br>
+          • <strong>파란색 감지</strong>: 90도 우회전 후 정지.<br>
+          • <strong>검은색 선 감지 (반사율 &le; 25%)</strong>: 라인을 따라가는 자동 차동 조향.
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Coding Export / Import Modal -->
+  <div id="codingModal" class="modal-overlay">
+    <div class="modal-card" style="max-width:480px;">
+      <h3 style="font-size:0.95rem; margin-bottom:6px;">블록 코딩 저장 / 불러오기</h3>
+      <p style="font-size:0.75rem; color:var(--text-muted); line-height:1.45; margin-bottom:10px;">
+        작성한 블록 코딩 시퀀스를 JSON 형식으로 복사하여 보관하거나, 저장해 둔 코드를 붙여넣어 불러올 수 있습니다.
+      </p>
+      <textarea id="codingJsonArea" style="width:100%; height:180px; font-family:var(--font-mono); font-size:0.76rem; padding:8px; border:1px solid var(--card-border); border-radius:8px; background:var(--tab-bg); color:var(--text); resize:vertical; margin-bottom:12px;"></textarea>
+      <div style="display:flex; justify-content:space-between; align-items:center;">
+        <button class="btn-action" onclick="copyCodingJsonToClipboard()">클립보드 복사</button>
+        <div style="display:flex; gap:8px;">
+          <button class="btn-action" onclick="closeCodingModal()">닫기</button>
+          <button class="btn-action primary" onclick="applyCodingJson()">불러와서 적용</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Rename Modal -->
   <div id="renameModal" class="modal-overlay">
     <div class="modal-card">
@@ -1207,6 +1763,8 @@
   <script src="piano-engine.js"></script>
   <script src="sensor-ml.js"></script>
   <script src="vision-ai.js"></script>
+  <script src="color-sensor.js"></script>
+  <script src="block-coding.js"></script>
 
   <script>
     // Theme Management (Light Mode Default + Dynamic SVG Icon)
@@ -1241,10 +1799,14 @@
     const piano = new PianoEngine();
     const ml = new SensorPatternML();
     const visionAI = new VisionHandController();
+    const colorSensor = (typeof MiRobotColorSensor !== 'undefined') ? new MiRobotColorSensor(robot) : null;
+    const blockCoding = (typeof BlockCodingStudio !== 'undefined') ? new BlockCodingStudio(robot, colorSensor, piano) : null;
 
     window.robot = robot;
     window.piano = piano;
     window.ml = ml;
+    window.colorSensor = colorSensor;
+    window.blockCoding = blockCoding;
 
     // Multi-Robot Fleet Handler
     function onFleetTargetChange(val) {
@@ -1436,7 +1998,9 @@
         balance: 'tabSecBalance',
         piano: 'tabSecPiano',
         ml: 'tabSecML',
-        vision: 'tabSecVision'
+        vision: 'tabSecVision',
+        coding: 'tabSecCoding',
+        hardware: 'tabSecHardware'
       };
 
       // Always activate target section first to prevent blank screen
@@ -2465,6 +3029,364 @@
       const key = e.key.toLowerCase();
       if (!isPianoActive && ['w', 's', 'a', 'd'].includes(key)) robot.stop();
     });
+
+    // ==========================================================
+    // Hardware Ports A, B, C, D & Color Sensor UI Handlers
+    // ==========================================================
+    function selectPortInfo(port) {
+      ['A', 'B', 'C', 'D'].forEach(p => {
+        const jack = document.getElementById(`brickJack${p}`);
+        const card = document.getElementById(`portCard${p}`);
+        if (jack) jack.classList.toggle('selected', p === port);
+        if (card) card.classList.toggle('active-port', p === port);
+      });
+      haptic(15);
+    }
+
+    function switchActiveSensorPort(port) {
+      if (colorSensor) {
+        colorSensor.setPort(port);
+        const badge = document.getElementById('activePortBadge');
+        if (badge) badge.textContent = `포트 ${port} 연동 중`;
+        const btnC = document.getElementById('btnSelectPortC');
+        const btnD = document.getElementById('btnSelectPortD');
+        if (btnC) btnC.classList.toggle('primary', port === 'C');
+        if (btnD) btnD.classList.toggle('primary', port === 'D');
+        selectPortInfo(port);
+      }
+    }
+
+    function testSimulateColor(colorId) {
+      if (colorSensor) {
+        colorSensor.simulate(colorId);
+        haptic(15);
+      }
+    }
+
+    function toggleAutoReaction(checked) {
+      if (colorSensor) {
+        colorSensor.setAutoReaction(checked);
+        haptic(20);
+      }
+    }
+
+    function updateReactionSpeed(val) {
+      const spd = Number(val) || 50;
+      const label = document.getElementById('valReactionSpeed');
+      if (label) label.textContent = `${spd}%`;
+      if (colorSensor) colorSensor.setReactionSpeed(spd);
+    }
+
+    if (colorSensor) {
+      colorSensor.addEventListener('sensorupdate', (e) => {
+        const s = e.detail;
+        if (!s) return;
+
+        const circle = document.getElementById('colorPreviewCircle');
+        const nameEl = document.getElementById('colorSensorName');
+        const hexEl = document.getElementById('colorSensorHex');
+        const barEl = document.getElementById('lineReflectanceBar');
+        const valEl = document.getElementById('lineReflectanceVal');
+        const lineBadge = document.getElementById('lineStatusBadge');
+
+        if (circle) circle.style.background = s.colorHex;
+        if (nameEl) {
+          nameEl.textContent = s.koreanName;
+          nameEl.style.color = (s.colorId === 0) ? 'var(--text-muted)' : (s.colorId === 1 ? 'var(--text)' : s.colorHex);
+        }
+        if (hexEl) {
+          hexEl.textContent = `HEX: ${s.colorHex} | Color ID: ${s.colorId} (${s.colorName})`;
+        }
+        if (barEl) barEl.style.width = `${s.grayscale}%`;
+        if (valEl) valEl.textContent = `${s.grayscale}%`;
+        if (lineBadge) {
+          if (s.isLineDetected) {
+            lineBadge.textContent = '선 감지 (흑색 라인)';
+            lineBadge.style.background = 'var(--danger-light)';
+            lineBadge.style.color = 'var(--danger)';
+          } else {
+            lineBadge.textContent = '일반 바닥 (Surface)';
+            lineBadge.style.background = 'var(--tab-bg)';
+            lineBadge.style.color = 'var(--text-muted)';
+          }
+        }
+      });
+    }
+
+    // ==========================================================
+    // Visual Block Coding Studio UI Handlers
+    // ==========================================================
+    function renderBlockInputs(blk, idx) {
+      const { type, params } = blk;
+      let html = '';
+
+      if (type === 'drive_forward' || type === 'drive_backward' || type === 'turn_left' || type === 'turn_right') {
+        html += `
+          <label style="font-size:0.75rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:3px;">
+            시간:
+            <input type="number" step="0.1" min="0.1" max="10" value="${params.duration || 1.0}"
+              onchange="blockCoding.updateParam(${idx}, 'duration', parseFloat(this.value))"
+              style="width:48px; padding:2px 4px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; background:var(--card-bg); color:var(--text);">초
+          </label>
+          <label style="font-size:0.75rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:3px;">
+            속도:
+            <input type="number" step="5" min="10" max="100" value="${params.speed || 70}"
+              onchange="blockCoding.updateParam(${idx}, 'speed', parseInt(this.value))"
+              style="width:48px; padding:2px 4px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; background:var(--card-bg); color:var(--text);">%
+          </label>
+        `;
+      } else if (type === 'motor_dual') {
+        html += `
+          <label style="font-size:0.75rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:3px;">
+            좌측:
+            <input type="number" step="5" min="-100" max="100" value="${params.left || 50}"
+              onchange="blockCoding.updateParam(${idx}, 'left', parseInt(this.value))"
+              style="width:46px; padding:2px 4px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; background:var(--card-bg); color:var(--text);">%
+          </label>
+          <label style="font-size:0.75rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:3px;">
+            우측:
+            <input type="number" step="5" min="-100" max="100" value="${params.right || 50}"
+              onchange="blockCoding.updateParam(${idx}, 'right', parseInt(this.value))"
+              style="width:46px; padding:2px 4px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; background:var(--card-bg); color:var(--text);">%
+          </label>
+          <label style="font-size:0.75rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:3px;">
+            시간:
+            <input type="number" step="0.1" min="0.1" max="10" value="${params.duration || 1.0}"
+              onchange="blockCoding.updateParam(${idx}, 'duration', parseFloat(this.value))"
+              style="width:46px; padding:2px 4px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; background:var(--card-bg); color:var(--text);">초
+          </label>
+        `;
+      } else if (type === 'stop' || type === 'wait') {
+        html += `
+          <label style="font-size:0.75rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:3px;">
+            대기:
+            <input type="number" step="0.1" min="0.1" max="10" value="${params.duration || 1.0}"
+              onchange="blockCoding.updateParam(${idx}, 'duration', parseFloat(this.value))"
+              style="width:50px; padding:2px 4px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; background:var(--card-bg); color:var(--text);">초
+          </label>
+        `;
+      } else if (type === 'wait_color') {
+        const colorOpts = ['Green', 'Red', 'Blue', 'Yellow', 'Black', 'White'];
+        html += `
+          <label style="font-size:0.75rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:3px;">
+            목표 색상:
+            <select onchange="blockCoding.updateParam(${idx}, 'color', this.value)" style="padding:2px 6px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; background:var(--card-bg); color:var(--text);">
+              ${colorOpts.map(c => `<option value="${c}" ${params.color === c ? 'selected' : ''}>${c}</option>`).join('')}
+            </select>
+          </label>
+          <label style="font-size:0.75rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:3px;">
+            제한:
+            <input type="number" step="0.5" min="1" max="30" value="${params.timeout || 5.0}"
+              onchange="blockCoding.updateParam(${idx}, 'timeout', parseFloat(this.value))"
+              style="width:46px; padding:2px 4px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; background:var(--card-bg); color:var(--text);">초
+          </label>
+        `;
+      } else if (type === 'line_trace_step') {
+        html += `
+          <label style="font-size:0.75rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:3px;">
+            속도:
+            <input type="number" step="5" min="10" max="80" value="${params.speed || 40}"
+              onchange="blockCoding.updateParam(${idx}, 'speed', parseInt(this.value))"
+              style="width:48px; padding:2px 4px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; background:var(--card-bg); color:var(--text);">%
+          </label>
+        `;
+      } else if (type === 'play_note') {
+        const noteOpts = [
+          { id: 13, name: '도 (C4)' },
+          { id: 15, name: '레 (D4)' },
+          { id: 17, name: '미 (E4)' },
+          { id: 18, name: '파 (F4)' },
+          { id: 20, name: '솔 (G4)' },
+          { id: 22, name: '라 (A4)' },
+          { id: 24, name: '시 (B4)' },
+          { id: 25, name: '높은 도 (C5)' }
+        ];
+        html += `
+          <label style="font-size:0.75rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:3px;">
+            음계:
+            <select onchange="blockCoding.updateParam(${idx}, 'note', parseInt(this.value))" style="padding:2px 6px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; background:var(--card-bg); color:var(--text);">
+              ${noteOpts.map(n => `<option value="${n.id}" ${params.note === n.id ? 'selected' : ''}>${n.name}</option>`).join('')}
+            </select>
+          </label>
+        `;
+      } else if (type === 'play_beep') {
+        html += `
+          <label style="font-size:0.75rem; color:var(--text-muted); display:inline-flex; align-items:center; gap:3px;">
+            횟수:
+            <input type="number" step="1" min="1" max="5" value="${params.count || 2}"
+              onchange="blockCoding.updateParam(${idx}, 'count', parseInt(this.value))"
+              style="width:44px; padding:2px 4px; font-size:0.75rem; border:1px solid var(--card-border); border-radius:4px; background:var(--card-bg); color:var(--text);">회
+          </label>
+        `;
+      }
+
+      return html;
+    }
+
+    function renderBlockWorkspace() {
+      const container = document.getElementById('blockWorkspaceList');
+      if (!container || !blockCoding) return;
+
+      const blocks = blockCoding.blocks;
+      const badge = document.getElementById('codingStatusBadge');
+      if (badge && !blockCoding.isRunning) {
+        badge.textContent = `준비 완료 (${blocks.length}개 블록)`;
+        badge.style.background = 'var(--primary-light)';
+        badge.style.color = 'var(--primary)';
+      }
+
+      if (blocks.length === 0) {
+        container.innerHTML = `
+          <div style="text-align:center; padding:32px 16px; color:var(--text-muted); border:2px dashed var(--card-border); border-radius:12px;">
+            <svg style="width:36px; height:36px; stroke:var(--text-muted); fill:none; margin-bottom:8px;" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            <p style="font-size:0.85rem; font-weight:700;">코딩 블록이 비어있습니다.</p>
+            <p style="font-size:0.75rem; margin-top:4px;">좌측 팔레트에서 원하는 블록을 추가하거나, 상단 추천 예제를 선택해 보세요!</p>
+          </div>
+        `;
+        return;
+      }
+
+      let html = '';
+      blocks.forEach((blk, idx) => {
+        const def = blockCoding.definitions[blk.type] || { name: blk.type, badge: '동작', color: '#2563eb', bg: '#eff6ff' };
+        const isExec = (idx === blockCoding.currentStep);
+        const borderGlow = isExec ? `border: 2px solid #2563eb; box-shadow: 0 0 12px rgba(37, 99, 235, 0.45); transform: scale(1.01);` : `border: 1px solid var(--card-border);`;
+
+        html += `
+          <div class="block-card ${isExec ? 'executing' : ''}" style="${borderGlow} background:var(--card-bg); border-left: 6px solid ${def.color}; border-radius:10px; padding:10px 14px; margin-bottom:8px; display:flex; align-items:center; justify-content:space-between; gap:10px; transition:all 0.2s ease;">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap; flex:1;">
+              <span style="font-size:0.7rem; font-weight:800; background:${def.bg}; color:${def.color}; padding:2px 8px; border-radius:6px;">${idx + 1}. ${def.badge}</span>
+              <strong style="font-size:0.85rem; color:var(--text);">${def.name}</strong>
+              ${renderBlockInputs(blk, idx)}
+            </div>
+            <div style="display:flex; align-items:center; gap:4px; flex-shrink:0;">
+              <button class="btn-block-ctrl" onclick="blockCoding.moveBlock(${idx}, -1)" title="위로 이동" ${idx === 0 ? 'disabled' : ''}>▲</button>
+              <button class="btn-block-ctrl" onclick="blockCoding.moveBlock(${idx}, 1)" title="아래로 이동" ${idx === blocks.length - 1 ? 'disabled' : ''}>▼</button>
+              <button class="btn-block-ctrl danger" onclick="blockCoding.removeBlock(${idx})" title="삭제">✕</button>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function addCodingBlock(type) {
+      if (blockCoding) {
+        blockCoding.addBlock(type);
+        haptic(15);
+      }
+    }
+
+    function loadCodingPreset(presetName) {
+      if (blockCoding) {
+        blockCoding.loadPreset(presetName);
+        haptic(20);
+      }
+    }
+
+    function startBlockProgram() {
+      if (blockCoding) {
+        piano.unlockAudio();
+        blockCoding.run();
+        haptic(25);
+      }
+    }
+
+    function stopBlockProgram() {
+      if (blockCoding) {
+        blockCoding.stop();
+        haptic(30);
+      }
+    }
+
+    function clearBlockProgram() {
+      if (blockCoding && confirm('모든 코딩 블록을 비우시겠습니까?')) {
+        blockCoding.clear();
+        haptic(15);
+      }
+    }
+
+    function openCodingModal() {
+      const modal = document.getElementById('codingModal');
+      const area = document.getElementById('codingJsonArea');
+      if (modal && area && blockCoding) {
+        area.value = blockCoding.exportJSON();
+        modal.style.display = 'flex';
+      }
+    }
+
+    function closeCodingModal() {
+      const modal = document.getElementById('codingModal');
+      if (modal) modal.style.display = 'none';
+    }
+
+    function copyCodingJsonToClipboard() {
+      const area = document.getElementById('codingJsonArea');
+      if (area) {
+        area.select();
+        navigator.clipboard.writeText(area.value).then(() => {
+          alert('코드가 클립보드에 복사되었습니다.');
+        }).catch(() => {
+          document.execCommand('copy');
+          alert('코드가 복사되었습니다.');
+        });
+      }
+    }
+
+    function applyCodingJson() {
+      const area = document.getElementById('codingJsonArea');
+      if (area && blockCoding) {
+        const ok = blockCoding.importJSON(area.value);
+        if (ok) {
+          closeCodingModal();
+          alert('블록 코딩이 성공적으로 적용되었습니다.');
+        } else {
+          alert('올바른 JSON 형식의 블록 코드가 아닙니다.');
+        }
+      }
+    }
+
+    if (blockCoding) {
+      blockCoding.addEventListener('blockschange', () => {
+        renderBlockWorkspace();
+      });
+
+      blockCoding.addEventListener('stepchange', (e) => {
+        const idx = e.detail?.index;
+        const banner = document.getElementById('codingLiveBanner');
+        const textEl = document.getElementById('codingLiveStepText');
+        const badge = document.getElementById('codingStatusBadge');
+
+        renderBlockWorkspace();
+
+        if (typeof idx === 'number' && idx >= 0) {
+          const total = blockCoding.blocks.length;
+          const blk = blockCoding.blocks[idx];
+          const def = blockCoding.definitions[blk?.type];
+          if (banner) banner.style.display = 'flex';
+          if (textEl) textEl.textContent = `실행 중 [${idx + 1}/${total}단계]: ${def?.name || ''} 동작 중...`;
+          if (badge) {
+            badge.textContent = `실행 중 (${idx + 1}/${total})`;
+            badge.style.background = 'var(--success-light)';
+            badge.style.color = 'var(--success)';
+          }
+        } else {
+          if (banner) banner.style.display = 'none';
+          if (badge) {
+            badge.textContent = `준비 완료 (${blockCoding.blocks.length}개 블록)`;
+            badge.style.background = 'var(--primary-light)';
+            badge.style.color = 'var(--primary)';
+          }
+        }
+      });
+
+      blockCoding.addEventListener('executioncomplete', () => {
+        alert('🎉 블록 코딩 프로그램 실행이 완료되었습니다!');
+      });
+
+      // Initial render
+      renderBlockWorkspace();
+    }
 
     // PWA Service Worker Registration
     if ('serviceWorker' in navigator) {

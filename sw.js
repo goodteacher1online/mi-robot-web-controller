@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mi-robot-v2.9';
+const CACHE_NAME = 'mi-robot-v3.0';
 const ASSETS = [
   './',
   './index.html',
@@ -8,6 +8,8 @@ const ASSETS = [
   './piano-engine.js',
   './sensor-ml.js',
   './vision-ai.js',
+  './color-sensor.js',
+  './block-coding.js',
   './manifest.json',
   './icon.png'
 ];

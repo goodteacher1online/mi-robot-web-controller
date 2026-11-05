@@ -265,6 +265,19 @@ class MiRobotBLE extends EventTarget {
 
         this.dispatchEvent(new CustomEvent('telemetry', { detail: this.telemetry }));
       }
+
+      // Sensor telemetry (Group 0x04 or 0x05)
+      // Port: A=0, B=1, C=2, D=3 | SensorType: 0x01=Motor, 0x02=Color, 0x03=Grayscale/Line
+      if (val[1] === 0x04 || val[1] === 0x05) {
+        const portIdx = val[2];
+        const portName = ['A', 'B', 'C', 'D'][portIdx] || 'C';
+        const sensorType = val[3];
+        const colorId = val[4];
+        const grayscale = val[5];
+        this.dispatchEvent(new CustomEvent('sensordata', {
+          detail: { port: portName, sensorType, colorId, grayscale, raw: val }
+        }));
+      }
     }
   }
 
@@ -559,6 +572,10 @@ class MiRobotFleet extends EventTarget {
       }
     });
 
+    r.addEventListener('sensordata', (e) => {
+      this.dispatchEvent(new CustomEvent('sensordata', { detail: e.detail }));
+    });
+
     r.addEventListener('connectionchange', (e) => {
       this.dispatchEvent(new CustomEvent('fleetchange', { detail: { count: this.connectedCount, robots: this.getRobotList() } }));
       this.dispatchEvent(new CustomEvent('connectionchange', { detail: { connected: this.isConnected, deviceName: r.device?.name || 'Mi Robot' } }));
@@ -644,6 +661,12 @@ class MiRobotFleet extends EventTarget {
       const target = this.getTargetRobot();
       if (target) target.calibrateBalance();
     }
+  }
+
+  simulateSensorData(port = 'C', data = {}) {
+    this.dispatchEvent(new CustomEvent('sensordata', {
+      detail: { port, ...data }
+    }));
   }
 }
 
