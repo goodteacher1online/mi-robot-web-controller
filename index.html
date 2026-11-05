@@ -524,10 +524,14 @@
     .setting-label { font-size: 0.82rem; font-weight: 600; color: var(--text-muted); }
     .slider {
       flex: 1;
-      max-width: 180px;
-      height: 6px;
+      width: 100%;
+      height: 8px;
       accent-color: var(--primary);
-      border-radius: 3px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .setting-row .slider {
+      max-width: 180px;
     }
 
     /* Multi-Octave Piano Keyboard */
@@ -686,20 +690,24 @@
       transition: width 0.15s ease-out;
     }
 
-    /* Vision AI Canvas */
+    /* Vision AI Natural Frame */
     .vision-container {
       position: relative;
       width: 100%;
-      height: 240px;
+      max-width: 640px;
+      aspect-ratio: 4 / 3;
+      margin: 0 auto;
       background: #000000;
-      border-radius: 12px;
+      border-radius: 14px;
       overflow: hidden;
+      box-shadow: var(--shadow);
     }
     .vision-container video {
       width: 100%;
       height: 100%;
-      object-fit: cover;
+      object-fit: contain;
       transform: scaleX(-1);
+      display: block;
     }
     .vision-container canvas {
       position: absolute;
@@ -707,6 +715,7 @@
       left: 0;
       width: 100%;
       height: 100%;
+      object-fit: contain;
       transform: scaleX(-1);
       pointer-events: none;
     }
@@ -1019,9 +1028,9 @@
     <div class="card">
       <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:14px; flex-wrap:wrap; gap:8px;">
         <div class="card-title" style="margin-bottom:0;">
-          <span id="pianoTitle">피아노 건반 (2 옥타브 C4 - B5 동시 표시)</span>
+          <span id="pianoTitle">피아노 건반</span>
         </div>
-        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <div style="display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
           <button id="btnSustain" class="btn-action" onclick="toggleSustain()">
             서스테인: OFF
           </button>
@@ -1032,22 +1041,26 @@
             <option value="butterfly">나비야</option>
             <option value="star">작은 별</option>
             <option value="bears">곰 세 마리</option>
+            <option value="stop">⏹ 연주 중지</option>
           </select>
+          <button id="btnStopSong" class="btn-action danger" onclick="stopCurrentSong()" title="현재 연주 즉시 중지">
+            ⏹ 연주 중지
+          </button>
         </div>
       </div>
 
-      <!-- Octave View Range Selector -->
+      <!-- Octave View Range Selector (Clean Typography without parentheses) -->
       <div style="display:flex; justify-content:center; gap:8px; margin-bottom:12px; flex-wrap:wrap;">
-        <button id="btnOctaveMode2" class="btn-action primary" onclick="setPianoViewMode('octaves-2')">2 옥타브 (C4~B5 동시 표시)</button>
-        <button id="btnOctaveMode3" class="btn-action" onclick="setPianoViewMode('octaves-3')">3 옥타브 (C3~B5 전체 36음)</button>
-        <button id="btnOctaveMode1" class="btn-action" onclick="setPianoViewMode('octaves-1')">1 옥타브 (확대)</button>
+        <button id="btnOctaveMode2" class="btn-action primary" onclick="setPianoViewMode('octaves-2')">2 옥타브</button>
+        <button id="btnOctaveMode3" class="btn-action" onclick="setPianoViewMode('octaves-3')">3 옥타브</button>
+        <button id="btnOctaveMode1" class="btn-action" onclick="setPianoViewMode('octaves-1')">1 옥타브</button>
       </div>
 
       <!-- Single Octave Sub-selector (shown when mode is octaves-1) -->
       <div id="singleOctavePicker" style="display:none; justify-content:center; gap:8px; margin-bottom:12px;">
-        <button id="btnOctave3" class="btn-action" onclick="setSingleOctave(3)">3 옥타브 (C3 - B3)</button>
-        <button id="btnOctave4" class="btn-action primary" onclick="setSingleOctave(4)">4 옥타브 (C4 - B4)</button>
-        <button id="btnOctave5" class="btn-action" onclick="setSingleOctave(5)">5 옥타브 (C5 - B5)</button>
+        <button id="btnOctave3" class="btn-action" onclick="setSingleOctave(3)">3 옥타브</button>
+        <button id="btnOctave4" class="btn-action primary" onclick="setSingleOctave(4)">4 옥타브</button>
+        <button id="btnOctave5" class="btn-action" onclick="setSingleOctave(5)">5 옥타브</button>
       </div>
 
       <div class="piano-wrapper">
@@ -1058,7 +1071,7 @@
 
       <div style="display:flex; justify-content:space-between; align-items:center; margin-top:14px; flex-wrap:wrap; gap:8px;">
         <span style="font-size:0.78rem; color:var(--text-muted);" id="pianoKeyHelp">
-          PC 키보드 연주: <kbd>A</kbd>, <kbd>S</kbd>, <kbd>D</kbd>, <kbd>F</kbd>, <kbd>G</kbd>, <kbd>H</kbd>, <kbd>J</kbd> (도레미파솔라시)
+          PC 키보드 연주: <kbd>A</kbd>, <kbd>S</kbd>, <kbd>D</kbd>, <kbd>F</kbd>, <kbd>G</kbd>, <kbd>H</kbd>, <kbd>J</kbd>
         </span>
         <div style="display:flex; align-items:center; gap:8px;">
           <span style="font-size:0.78rem; color:var(--text-muted); font-weight:700;">볼륨</span>
@@ -1147,13 +1160,26 @@
         <canvas id="visionCanvas"></canvas>
       </div>
 
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px;">
-        <div style="font-size:0.82rem; color:var(--text-muted);">
-          인식된 명령: <strong id="visionCmdText" style="color:var(--primary); font-size:0.95rem;">정지</strong>
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-top:12px; flex-wrap:wrap; gap:8px;">
+        <div style="font-size:0.85rem; color:var(--text-muted);">
+          실시간 인식 명령: <strong id="visionCmdText" style="color:var(--primary); font-size:1.05rem; font-weight:900;">정지</strong>
         </div>
-        <span style="font-size:0.72rem; color:var(--text-dim);">
-          포즈 모드: 좌/우 기울임(회전), 숙이기(후진), 세우기(전진)
+        <span id="visionActiveModeBadge" class="ml-sample-pill" style="background:var(--primary-light); color:var(--primary); font-weight:800;">
+          핸드 제스처 모드 동작 중
         </span>
+      </div>
+
+      <!-- Comprehensive Motion Control Manual (Dynamically updates per mode) -->
+      <div id="visionModeGuideBox" style="margin-top:12px; padding:12px 14px; background:var(--tab-bg); border-radius:12px; border:1px solid var(--card-border); font-size:0.78rem; line-height:1.6;">
+        <div id="visionModeGuideTitle" style="font-weight:800; color:var(--text); margin-bottom:4px;">
+          ✋ 핸드 제스처 모드 조작 안내
+        </div>
+        <div id="visionModeGuideText" style="color:var(--text-muted);">
+          카메라를 향해 손을 뻗어 화면 상에서 위치를 이동하세요:<br>
+          • <strong>화면 위쪽으로 손 올림</strong>: 전진 | • <strong>화면 아래쪽으로 손 내림</strong>: 후진<br>
+          • <strong>화면 좌측으로 손 이동</strong>: 좌회전 | • <strong>화면 우측으로 손 이동</strong>: 우회전<br>
+          • <strong>화면 중앙 위치 또는 손 치우기</strong>: 즉시 정지
+        </div>
       </div>
     </div>
   </section>
@@ -1161,8 +1187,12 @@
   <!-- Rename Modal -->
   <div id="renameModal" class="modal-overlay">
     <div class="modal-card">
-      <h3 style="font-size:0.95rem; margin-bottom:10px;">로봇 별칭 변경</h3>
-      <input type="text" id="renameInput" style="width:100%; padding:10px; border:1px solid var(--card-border); border-radius:8px; font-size:0.9rem; margin-bottom:14px;">
+      <h3 style="font-size:0.95rem; margin-bottom:6px;">로봇 별칭 변경</h3>
+      <p id="renameBleInfo" style="font-size:0.75rem; color:var(--primary); font-weight:700; margin-bottom:10px;">블루투스 기기: Mi Robot (고유 ID 매칭)</p>
+      <input type="text" id="renameInput" style="width:100%; padding:10px; border:1px solid var(--card-border); border-radius:8px; font-size:0.9rem; margin-bottom:8px;">
+      <p style="font-size:0.72rem; color:var(--text-muted); line-height:1.45; margin-bottom:14px;">
+        설정한 별칭은 기기의 블루투스 고유 ID와 매칭되어 브라우저에 저장되며, 이후 해당 로봇에 연결될 때마다 자동으로 이 별칭으로 표시됩니다.
+      </p>
       <div style="display:flex; justify-content:flex-end; gap:8px;">
         <button class="btn-action" onclick="closeRenameModal()">취소</button>
         <button class="btn-action primary" onclick="saveRenameModal()">저장</button>
@@ -1434,7 +1464,11 @@
 
     // 3. Rename Modal
     function openRenameModal() {
-      document.getElementById('renameInput').value = aliasMgr.getName(robot.device?.id, 'Mi Robot');
+      const devName = robot.device?.name || 'Mi Robot';
+      const devId = robot.device?.id ? ` (ID: ${robot.device.id.slice(0, 8)}...)` : ' (연결 대기 중)';
+      const infoEl = document.getElementById('renameBleInfo');
+      if (infoEl) infoEl.textContent = `연동 기기: ${devName}${devId}`;
+      document.getElementById('renameInput').value = aliasMgr.getName(robot.device?.id, devName);
       document.getElementById('renameModal').style.display = 'flex';
     }
     function closeRenameModal() { document.getElementById('renameModal').style.display = 'none'; }
@@ -1794,19 +1828,18 @@
       let startOctave = 4;
       let endOctave = 5;
 
+      if (titleEl) titleEl.textContent = '피아노 건반';
+
       if (pianoViewMode === 'octaves-3') {
         startOctave = 3;
         endOctave = 5;
-        if (titleEl) titleEl.textContent = '피아노 건반 (3 옥타브 C3 - B5 전체 36건반)';
       } else if (pianoViewMode === 'octaves-1') {
         startOctave = currentSingleOctave;
         endOctave = currentSingleOctave;
-        if (titleEl) titleEl.textContent = `피아노 건반 (${currentSingleOctave} 옥타브 C${currentSingleOctave} - B${currentSingleOctave})`;
       } else {
         // default octaves-2
         startOctave = 4;
         endOctave = 5;
-        if (titleEl) titleEl.textContent = '피아노 건반 (2 옥타브 C4 - B5 동시 표시)';
       }
 
       const octavesCount = endOctave - startOctave + 1;
@@ -1865,8 +1898,23 @@
       haptic(20);
     }
 
+    function stopCurrentSong() {
+      if (typeof piano !== 'undefined' && piano.stopSong) {
+        piano.stopSong();
+      }
+      document.querySelectorAll('#pianoKeyboard .active').forEach(k => k.classList.remove('active'));
+      const sel = document.getElementById('songSelect');
+      if (sel) sel.value = '';
+      haptic(15);
+    }
+
     async function playSelectedSong(songKey) {
       if (!songKey) return;
+      if (songKey === 'stop') {
+        stopCurrentSong();
+        return;
+      }
+      stopCurrentSong(); // Stop any currently playing song first!
       piano.unlockAudio();
       haptic(20);
 
@@ -1878,8 +1926,6 @@
         }
         if (robot.isConnected) robot.playTone(noteId);
       });
-      const sel = document.getElementById('songSelect');
-      if (sel) sel.value = '';
     }
 
     function playDemoSong() {
@@ -2138,6 +2184,31 @@
       visionAI.setMode(mode);
       document.getElementById('btnVisionModeHand').className = `btn-action ${mode === 'hand' ? 'primary' : ''}`;
       document.getElementById('btnVisionModePose').className = `btn-action ${mode === 'pose' ? 'primary' : ''}`;
+
+      const titleEl = document.getElementById('visionModeGuideTitle');
+      const textEl = document.getElementById('visionModeGuideText');
+      const badgeEl = document.getElementById('visionActiveModeBadge');
+
+      if (mode === 'hand') {
+        if (badgeEl) badgeEl.textContent = '핸드 제스처 모드 동작 중';
+        if (titleEl) titleEl.textContent = '✋ 핸드 제스처 모드 조작 안내';
+        if (textEl) {
+          textEl.innerHTML = `카메라를 향해 손을 뻗어 화면 상에서 위치를 이동하세요:<br>
+          • <strong>화면 위쪽으로 손 올림</strong>: 전진 | • <strong>화면 아래쪽으로 손 내림</strong>: 후진<br>
+          • <strong>화면 좌측으로 손 이동</strong>: 좌회전 | • <strong>화면 우측으로 손 이동</strong>: 우회전<br>
+          • <strong>화면 중앙 위치 또는 손 치우기</strong>: 즉시 정지`;
+        }
+      } else {
+        if (badgeEl) badgeEl.textContent = '상체 포즈 모드 동작 중';
+        if (titleEl) titleEl.textContent = '🧍 상체 포즈 모드 조작 안내';
+        if (textEl) {
+          textEl.innerHTML = `상체 중심선을 카메라에 맞추고 몸을 기울이세요:<br>
+          • <strong>상체 똑바로 세우기</strong>: 전진 | • <strong>상체 숙이기 (머리 낮춤)</strong>: 후진<br>
+          • <strong>좌측으로 몸 기울이기</strong>: 좌회전 | • <strong>우측으로 몸 기울이기</strong>: 우회전<br>
+          • <strong>바른 자세 중앙 유지</strong>: 즉시 정지`;
+        }
+      }
+      haptic(15);
     }
 
     visionAI.addEventListener('gesture', (e) => {

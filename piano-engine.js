@@ -234,15 +234,24 @@ class MiPianoEngine {
     }
   }
 
-  stopMelody() {
+  stopSong() {
+    this._songSessionId = (this._songSessionId || 0) + 1;
     this._stopMelodyFlag = true;
     this.isPlaying = false;
   }
 
+  stopMelody() {
+    this.stopSong();
+  }
+
   /**
    * Play Song with authentic rhythmic note timings and key highlight events
+   * Immediately stops any currently playing song before starting
    */
   async playSong(songKey, onNotePlayed = null) {
+    this.stopSong(); // Stop any active song immediately!
+    const currentSession = this._songSessionId;
+
     const song = this.songs[songKey];
     if (!song) return;
 
@@ -251,7 +260,7 @@ class MiPianoEngine {
     this.isPlaying = true;
 
     for (const item of song.score) {
-      if (this._stopMelodyFlag) break;
+      if (this._songSessionId !== currentSession || this._stopMelodyFlag) break;
       const noteId = item.note;
       const beats = item.beats || 1;
       const noteDuration = beats * song.tempo;
@@ -263,9 +272,12 @@ class MiPianoEngine {
         }
       }
       await new Promise(r => setTimeout(r, noteDuration));
+      if (this._songSessionId !== currentSession || this._stopMelodyFlag) break;
     }
 
-    this.isPlaying = false;
+    if (this._songSessionId === currentSession) {
+      this.isPlaying = false;
+    }
   }
 
   /**
