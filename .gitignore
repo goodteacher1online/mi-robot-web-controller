@@ -1,0 +1,6 @@
+.backup_desktop_download/
+tests/test_playwright.py
+*.png
+node_modules/
+.DS_Store
+Thumbs.db
