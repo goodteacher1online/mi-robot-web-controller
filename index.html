@@ -1078,6 +1078,9 @@
           <button id="btnModeMotors" class="btn-action" onclick="setDriveMode('motors')">
             좌우 모터 개별 제어
           </button>
+          <button id="btnModePath" class="btn-action" onclick="setDriveMode('path')">
+            경로 궤적 주행
+          </button>
         </div>
 
         <div id="voiceBanner" style="display:none; margin-bottom:12px; padding:10px 14px; background:var(--tab-bg); border:1px solid var(--primary); border-radius:12px; text-align:center;">
@@ -1183,6 +1186,35 @@
             </button>
           </div>
         </div>
+
+        <!-- Mode 4: Path Drawing Autonomous Drive -->
+        <div id="pathView" style="display:none; padding:14px; background:var(--tab-bg); border-radius:14px; border:1px solid var(--card-border); text-align:center;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+            <div style="font-size:0.82rem; font-weight:800; color:var(--text); text-align:left;">
+              터치 경로 그리기 자율 주행 (Path Drawing Drive)
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button id="btnStartPathDrive" class="btn-action primary" onclick="startPathDrive()">
+                ▶ 경로 주행 시작
+              </button>
+              <button id="btnStopPathDrive" class="btn-action danger" onclick="stopPathDrive()">
+                ⏹ 중지
+              </button>
+              <button class="btn-action" onclick="clearPathDrawing()">
+                🗑 지우기
+              </button>
+            </div>
+          </div>
+          <div style="position:relative; width:100%; max-width:440px; margin:0 auto; aspect-ratio:4/3; background:var(--card-bg); border-radius:12px; border:2px dashed var(--card-border); overflow:hidden;">
+            <canvas id="pathCanvas" style="width:100%; height:100%; display:block; cursor:crosshair; touch-action:none;"></canvas>
+            <div id="pathPromptNotice" style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; font-size:0.82rem; color:var(--text-muted); font-weight:700;">
+              여기에 손가락이나 마우스로 주행할 경로를 그려보세요!
+            </div>
+          </div>
+          <p style="font-size:0.72rem; color:var(--text-muted); margin-top:8px;">
+            중앙(출발점)에서부터 선을 그리면 로봇이 선의 방향과 길이에 맞춰 각도와 거리를 계산하여 자율 주행합니다.
+          </p>
+        </div>
       </div>
 
       <!-- Cockpit Side Deck (Right Stage on PC Widescreen) -->
@@ -1261,6 +1293,31 @@
       <div class="setting-row"><span class="setting-label">각도 D (감쇠력)</span><input type="range" id="pidAngleD" class="slider" min="5" max="80" value="30" oninput="applyPIDGains()"></div>
       <div class="setting-row"><span class="setting-label">속도 P (위치유지)</span><input type="range" id="pidSpeedP" class="slider" min="10" max="100" value="40" oninput="applyPIDGains()"></div>
       <div class="setting-row"><span class="setting-label">속도 I (오차누적)</span><input type="range" id="pidSpeedI" class="slider" min="0" max="50" value="20" oninput="applyPIDGains()"></div>
+    </div>
+
+    <!-- Card: Telemetry Flight Data Recorder & CSV Export -->
+    <div class="card">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
+        <div>
+          <div class="card-title" style="margin-bottom:2px;">
+            텔레메트리 블랙박스 & CSV 비행 기록기 (Flight Data Recorder)
+          </div>
+          <div style="font-size:0.75rem; color:var(--text-muted);">
+            주행 중 발생하는 자이로 각도, 모터 속도 지령, 배터리 데이터를 실시간 캡처하여 엑셀/CSV로 다운로드
+          </div>
+        </div>
+        <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+          <span id="recorderStatusBadge" class="ml-sample-pill" style="background:var(--tab-bg); color:var(--text-muted); font-weight:800;">
+            기록 대기 중 (0개 샘플)
+          </span>
+          <button id="btnToggleRecord" class="btn-action accent" onclick="toggleTelemetryRecorder()">
+            ⏺ 텔레메트리 기록 시작
+          </button>
+          <button id="btnDownloadCsv" class="btn-action primary" onclick="downloadTelemetryCSV()" disabled>
+            💾 CSV 다운로드
+          </button>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -1951,22 +2008,28 @@
       const joy = document.getElementById('joystickView');
       const dpad = document.getElementById('dpadView');
       const motors = document.getElementById('motorsView');
+      const path = document.getElementById('pathView');
       const btnJoy = document.getElementById('btnModeJoystick');
       const btnDpad = document.getElementById('btnModeDpad');
       const btnMotors = document.getElementById('btnModeMotors');
+      const btnPath = document.getElementById('btnModePath');
 
       if (joy) joy.style.display = (mode === 'joystick') ? 'flex' : 'none';
       if (dpad) dpad.style.display = (mode === 'dpad') ? 'grid' : 'none';
       if (motors) motors.style.display = (mode === 'motors') ? 'block' : 'none';
+      if (path) path.style.display = (mode === 'path') ? 'block' : 'none';
 
       if (btnJoy) btnJoy.classList.toggle('primary', mode === 'joystick');
       if (btnDpad) btnDpad.classList.toggle('primary', mode === 'dpad');
       if (btnMotors) btnMotors.classList.toggle('primary', mode === 'motors');
+      if (btnPath) btnPath.classList.toggle('primary', mode === 'path');
 
       robot.stop();
       if (mode === 'motors') {
         setMotorPreset('L', 0);
         setMotorPreset('R', 0);
+      } else if (mode === 'path') {
+        setTimeout(initPathCanvas, 80);
       }
     }
 
@@ -2364,6 +2427,7 @@
       rollHistory.push(roll);
       rollHistory.shift();
       drawScope();
+      recordTelemetrySample(pitch, roll);
     });
 
     function drawScope() {
@@ -3506,6 +3570,269 @@
 
       // Initial render
       renderBlockWorkspace();
+    }
+
+    // ==========================================================
+    // Telemetry Flight Data Recorder (BlackBox / CSV Export)
+    // ==========================================================
+    let isRecordingTelemetry = false;
+    let telemetryRecordBuffer = [];
+    let recordStartTime = null;
+
+    function toggleTelemetryRecorder() {
+      const btn = document.getElementById('btnToggleRecord');
+      const badge = document.getElementById('recorderStatusBadge');
+      const btnDl = document.getElementById('btnDownloadCsv');
+
+      if (!isRecordingTelemetry) {
+        isRecordingTelemetry = true;
+        telemetryRecordBuffer = [];
+        recordStartTime = Date.now();
+        if (btn) {
+          btn.textContent = '⏹ 기록 중지';
+          btn.classList.add('danger');
+          btn.classList.remove('accent');
+        }
+        if (badge) {
+          badge.textContent = '기록 중... (0개 샘플)';
+          badge.style.background = 'var(--danger-light)';
+          badge.style.color = 'var(--danger)';
+        }
+        if (btnDl) btnDl.disabled = true;
+        haptic(25);
+      } else {
+        isRecordingTelemetry = false;
+        if (btn) {
+          btn.textContent = '⏺ 텔레메트리 기록 시작';
+          btn.classList.remove('danger');
+          btn.classList.add('accent');
+        }
+        if (badge) {
+          const duration = ((Date.now() - recordStartTime) / 1000).toFixed(1);
+          badge.textContent = `기록 완료: ${telemetryRecordBuffer.length}개 샘플 (${duration}초)`;
+          badge.style.background = 'var(--success-light)';
+          badge.style.color = 'var(--success)';
+        }
+        if (btnDl) btnDl.disabled = (telemetryRecordBuffer.length === 0);
+        haptic(20);
+      }
+    }
+
+    function recordTelemetrySample(pitch, roll) {
+      if (!isRecordingTelemetry) return;
+      const now = Date.now();
+      const elapsedSec = ((now - recordStartTime) / 1000).toFixed(2);
+      const sample = {
+        timestamp: new Date(now).toISOString(),
+        elapsed_sec: elapsedSec,
+        pitch: (typeof pitch === 'number' ? pitch : 0).toFixed(2),
+        roll: (typeof roll === 'number' ? roll : 0).toFixed(2),
+        axisX: robot.axisX || 128,
+        axisY: robot.axisY || 128,
+        leftMotor: motorLeftVal || 0,
+        rightMotor: motorRightVal || 0,
+        battery: robot.telemetry?.battery ?? ''
+      };
+      telemetryRecordBuffer.push(sample);
+
+      if (telemetryRecordBuffer.length % 5 === 0) {
+        const badge = document.getElementById('recorderStatusBadge');
+        if (badge && isRecordingTelemetry) {
+          badge.textContent = `기록 중... (${telemetryRecordBuffer.length}개, ${elapsedSec}초)`;
+        }
+      }
+    }
+
+    function downloadTelemetryCSV() {
+      if (telemetryRecordBuffer.length === 0) {
+        alert('기록된 텔레메트리 데이터가 없습니다.');
+        return;
+      }
+      let csv = 'Timestamp,Elapsed_Seconds,Pitch_Deg,Roll_Deg,Drive_Axis_X,Drive_Axis_Y,Left_Motor_Pct,Right_Motor_Pct,Battery_Pct\n';
+      telemetryRecordBuffer.forEach(s => {
+        csv += `${s.timestamp},${s.elapsed_sec},${s.pitch},${s.roll},${s.axisX},${s.axisY},${s.leftMotor},${s.rightMotor},${s.battery}\n`;
+      });
+
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      const timeStr = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+      a.href = url;
+      a.download = `mi-robot-flight-data-${timeStr}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      haptic(20);
+    }
+
+    // ==========================================================
+    // Path Drawing Autonomous Drive Engine
+    // ==========================================================
+    const pathCanvas = document.getElementById('pathCanvas');
+    const pathCtx = pathCanvas ? pathCanvas.getContext('2d') : null;
+    let pathPoints = [];
+    let isDrawingPath = false;
+    let isPathDriving = false;
+    let pathAbortController = null;
+
+    function initPathCanvas() {
+      if (!pathCanvas || !pathCtx) return;
+      const rect = pathCanvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      if (rect.width > 0 && rect.height > 0) {
+        pathCanvas.width = Math.round(rect.width * dpr);
+        pathCanvas.height = Math.round(rect.height * dpr);
+      }
+      drawPath();
+    }
+    window.addEventListener('resize', initPathCanvas);
+
+    function drawPath() {
+      if (!pathCanvas || !pathCtx) return;
+      const w = pathCanvas.width;
+      const h = pathCanvas.height;
+      if (w === 0 || h === 0) return;
+      pathCtx.clearRect(0, 0, w, h);
+
+      // Center Start Point Marker
+      const cx = w / 2;
+      const cy = h / 2;
+
+      pathCtx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
+      pathCtx.lineWidth = 1;
+      pathCtx.beginPath();
+      pathCtx.arc(cx, cy, 26, 0, Math.PI * 2);
+      pathCtx.stroke();
+
+      pathCtx.fillStyle = '#2563eb';
+      pathCtx.beginPath();
+      pathCtx.arc(cx, cy, 6, 0, Math.PI * 2);
+      pathCtx.fill();
+
+      // Drawn Path
+      if (pathPoints.length > 1) {
+        pathCtx.strokeStyle = '#2563eb';
+        pathCtx.lineWidth = 4 * (window.devicePixelRatio || 1);
+        pathCtx.lineCap = 'round';
+        pathCtx.lineJoin = 'round';
+        pathCtx.beginPath();
+        pathCtx.moveTo(pathPoints[0].x, pathPoints[0].y);
+        for (let i = 1; i < pathPoints.length; i++) {
+          pathCtx.lineTo(pathPoints[i].x, pathPoints[i].y);
+        }
+        pathCtx.stroke();
+      }
+    }
+
+    if (pathCanvas) {
+      const getPt = (e) => {
+        const rect = pathCanvas.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        const clientX = e.clientX ?? (e.touches ? e.touches[0].clientX : 0);
+        const clientY = e.clientY ?? (e.touches ? e.touches[0].clientY : 0);
+        return {
+          x: (clientX - rect.left) * dpr,
+          y: (clientY - rect.top) * dpr
+        };
+      };
+
+      const startDraw = (e) => {
+        if (isPathDriving) return;
+        isDrawingPath = true;
+        pathPoints = [getPt(e)];
+        const notice = document.getElementById('pathPromptNotice');
+        if (notice) notice.style.display = 'none';
+        drawPath();
+      };
+
+      const moveDraw = (e) => {
+        if (!isDrawingPath) return;
+        pathPoints.push(getPt(e));
+        drawPath();
+      };
+
+      const endDraw = () => {
+        isDrawingPath = false;
+      };
+
+      pathCanvas.addEventListener('pointerdown', startDraw);
+      pathCanvas.addEventListener('pointermove', moveDraw);
+      pathCanvas.addEventListener('pointerup', endDraw);
+      pathCanvas.addEventListener('pointercancel', endDraw);
+    }
+
+    function clearPathDrawing() {
+      pathPoints = [];
+      drawPath();
+      const notice = document.getElementById('pathPromptNotice');
+      if (notice) notice.style.display = 'flex';
+      haptic(15);
+    }
+
+    async function startPathDrive() {
+      if (pathPoints.length < 5) {
+        alert('주행할 경로를 캔버스 위에 그려주세요.');
+        return;
+      }
+      if (isPathDriving) return;
+
+      isPathDriving = true;
+      pathAbortController = new AbortController();
+      const signal = pathAbortController.signal;
+      haptic(25);
+
+      const btnStart = document.getElementById('btnStartPathDrive');
+      if (btnStart) btnStart.textContent = '주행 중...';
+
+      try {
+        const waypoints = [];
+        const stepInterval = Math.max(1, Math.floor(pathPoints.length / 8));
+        for (let i = 0; i < pathPoints.length; i += stepInterval) {
+          waypoints.push(pathPoints[i]);
+        }
+        if (waypoints[waypoints.length - 1] !== pathPoints[pathPoints.length - 1]) {
+          waypoints.push(pathPoints[pathPoints.length - 1]);
+        }
+
+        for (let i = 1; i < waypoints.length; i++) {
+          if (signal.aborted) break;
+          const p1 = waypoints[i - 1];
+          const p2 = waypoints[i];
+          const dx = p2.x - p1.x;
+          const dy = -(p2.y - p1.y);
+          const dist = Math.hypot(dx, dy);
+          const angle = Math.atan2(dx, dy);
+
+          const steerX = Math.sin(angle);
+          const throttleY = Math.cos(angle);
+
+          const driveX = 128 + Math.round(steerX * 70);
+          const driveY = 128 + Math.round(throttleY * 70);
+
+          robot.setDrive(driveX, driveY);
+          const stepDurationMs = Math.min(800, Math.max(250, dist * 3.5));
+          await new Promise(r => setTimeout(r, stepDurationMs));
+        }
+
+        robot.stop();
+        if (typeof piano !== 'undefined' && piano.playNote) piano.playNote(25);
+      } catch (err) {
+        console.warn('Path drive error:', err);
+      } finally {
+        isPathDriving = false;
+        robot.stop();
+        if (btnStart) btnStart.textContent = '▶ 경로 주행 시작';
+      }
+    }
+
+    function stopPathDrive() {
+      if (pathAbortController) pathAbortController.abort();
+      isPathDriving = false;
+      robot.stop();
+      const btnStart = document.getElementById('btnStartPathDrive');
+      if (btnStart) btnStart.textContent = '▶ 경로 주행 시작';
+      haptic(20);
     }
 
     // PWA Service Worker Registration
