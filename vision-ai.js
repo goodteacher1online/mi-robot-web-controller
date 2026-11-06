@@ -103,7 +103,11 @@ class VisionHandController extends EventTarget {
     let totalX = 0, totalY = 0, count = 0;
     for (let i = 0; i < d.length; i += 8) {
       const r = d[i], g = d[i+1], b = d[i+2];
-      if (r > 100 && g > 70 && b < 170 && (r - g) > 10) {
+      // Inclusive skin tone detection (Fitzpatrick types I-VI, diverse light conditions)
+      const maxVal = Math.max(r, g, b);
+      const minVal = Math.min(r, g, b);
+      const isSkin = (r > 60 && g > 40 && b > 20) && (r > g) && (r > b) && (maxVal - minVal > 12);
+      if (isSkin) {
         const pixelIdx = i / 4;
         totalX += pixelIdx % aW;
         totalY += Math.floor(pixelIdx / aW);
@@ -111,7 +115,7 @@ class VisionHandController extends EventTarget {
       }
     }
 
-    if (count > 50) {
+    if (count > 40) {
       const aCenterX = totalX / count;
       const aCenterY = totalY / count;
       const centerX = (aCenterX / aW) * dispW;
@@ -127,7 +131,8 @@ class VisionHandController extends EventTarget {
       this.canvasCtx.fillStyle = 'rgba(37, 99, 235, 0.2)';
       this.canvasCtx.fill();
 
-      const normX = (centerX - dispW / 2) / (dispW / 2);
+      // Invert normX to align with CSS scaleX(-1) selfie mirror display
+      const normX = -((centerX - dispW / 2) / (dispW / 2));
       const normY = -(centerY - dispH / 2) / (dispH / 2);
 
       let cmd = '정지';

@@ -598,6 +598,10 @@ class MiRobotFleet extends EventTarget {
     this.dispatchEvent(new CustomEvent('connectionchange', { detail: { connected: false } }));
   }
 
+  setActiveTarget(val) {
+    this.activeTarget = val;
+  }
+
   getRobotList() {
     return this.robots.map((r, i) => ({
       id: r.device?.id || `robot_${i}`,
@@ -654,6 +658,15 @@ class MiRobotFleet extends EventTarget {
     }
   }
 
+  playSound(soundId) {
+    if (this.activeTarget === 'all') {
+      this.robots.forEach(r => r.playSound(soundId));
+    } else {
+      const target = this.getTargetRobot();
+      if (target) target.playSound(soundId);
+    }
+  }
+
   calibrateBalance() {
     if (this.activeTarget === 'all') {
       this.robots.forEach(r => r.calibrateBalance());
@@ -661,6 +674,20 @@ class MiRobotFleet extends EventTarget {
       const target = this.getTargetRobot();
       if (target) target.calibrateBalance();
     }
+  }
+
+  setBalancePID(angleP, angleD, speedP, speedI) {
+    if (this.activeTarget === 'all') {
+      return Promise.allSettled(this.robots.map(r => r.setBalancePID(angleP, angleD, speedP, speedI)));
+    } else {
+      const target = this.getTargetRobot();
+      if (target) return target.setBalancePID(angleP, angleD, speedP, speedI);
+    }
+  }
+
+  readPIDGains() {
+    const target = this.getTargetRobot();
+    if (target) return target.readPIDGains();
   }
 
   simulateSensorData(port = 'C', data = {}) {

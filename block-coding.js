@@ -256,7 +256,7 @@ class BlockCodingStudio extends EventTarget {
   async run() {
     if (this.isRunning) return;
     if (this.blocks.length === 0) {
-      alert('실행할 블록이 없습니다. 블록을 추가해 주세요.');
+      this.dispatchEvent(new CustomEvent('emptyerror', { detail: { message: '실행할 블록이 없습니다. 좌측에서 블록을 추가해 주세요.' } }));
       return;
     }
 

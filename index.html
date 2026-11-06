@@ -286,7 +286,7 @@
       border: 1px solid var(--card-border);
       box-shadow: var(--shadow-sm);
     }
-    .hud-label { font-size: 0.68rem; color: var(--text-dim); font-weight: 700; }
+    .hud-label { font-size: 0.72rem; color: var(--text-dim); font-weight: 700; }
     .hud-val { font-size: 0.88rem; font-weight: 800; font-family: var(--font-mono); color: var(--primary); }
 
     .diag-group {
@@ -296,7 +296,7 @@
       flex-wrap: wrap;
     }
     .diag-label {
-      font-size: 0.68rem;
+      font-size: 0.72rem;
       color: var(--text-dim);
       font-weight: 700;
       margin-right: 2px;
@@ -304,12 +304,12 @@
     .diag-chip {
       display: inline-flex;
       align-items: center;
-      padding: 3px 8px;
+      padding: 4px 9px;
       border-radius: 6px;
       background: var(--tab-bg);
       color: var(--text-muted);
       border: 1px solid var(--card-border);
-      font-size: 0.68rem;
+      font-size: 0.74rem;
       font-weight: 700;
     }
     .diag-chip.ok { background: var(--success-light); color: var(--success); border-color: rgba(16, 185, 129, 0.3); }
@@ -441,11 +441,53 @@
 
     .dpad-container {
       display: grid;
-      grid-template-columns: repeat(3, clamp(90px, 10.5vw, 130px));
-      grid-template-rows: repeat(3, clamp(90px, 10.5vw, 130px));
-      gap: 16px;
+      grid-template-columns: repeat(3, clamp(72px, 9.5vw, 120px));
+      grid-template-rows: repeat(3, clamp(72px, 9.5vw, 120px));
+      gap: 12px;
       justify-content: center;
-      margin: 24px 0;
+      margin: 18px 0;
+    }
+    @media (max-width: 380px) {
+      .dpad-container {
+        grid-template-columns: repeat(3, clamp(64px, 26vw, 84px));
+        grid-template-rows: repeat(3, clamp(64px, 26vw, 84px));
+        gap: 8px;
+      }
+      .dpad-btn {
+        border-radius: 12px;
+        font-size: 0.95rem;
+      }
+    }
+
+    /* Mobile Floating Emergency Stop Button */
+    .mobile-emergency-fab {
+      display: none;
+    }
+    @media (max-width: 768px) {
+      .mobile-emergency-fab.visible {
+        position: fixed;
+        bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+        right: 16px;
+        z-index: 150;
+        background: #dc2626;
+        color: #ffffff;
+        border: 2px solid #ffffff;
+        border-radius: 50px;
+        padding: 10px 18px;
+        font-size: 0.85rem;
+        font-weight: 900;
+        box-shadow: 0 4px 16px rgba(220, 38, 38, 0.45);
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+        touch-action: manipulation;
+        animation: pulseFab 2s infinite;
+      }
+      @keyframes pulseFab {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.04); }
+      }
     }
     .dpad-btn {
       background: var(--card-bg);
@@ -1181,6 +1223,11 @@
         </p>
       </div>
 
+      <!-- Mobile Floating Emergency Stop Button (Always visible on mobile) -->
+      <button id="btnMobileEmergencyFab" class="mobile-emergency-fab visible" onclick="triggerEmergencyStop()" aria-label="비상 정지">
+        🛑 비상 정지
+      </button>
+
     </div>
   </section>
 
@@ -1662,6 +1709,13 @@
             <span id="lineStatusBadge" class="ml-sample-pill" style="padding:2px 8px; font-size:0.68rem; background:var(--tab-bg); color:var(--text);">일반 바닥 (Surface)</span>
             <span style="color:#64748b;">100% (밝은 바닥)</span>
           </div>
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-top:8px; padding-top:6px; border-top:1px dashed var(--card-border); font-size:0.72rem;">
+            <span style="font-weight:700; color:var(--text-muted);">라인 감지 기준값:</span>
+            <div style="display:flex; align-items:center; gap:6px;">
+              <input type="range" id="sliderLineThresh" min="10" max="45" value="25" oninput="updateLineThreshold(this.value)" style="width:80px; accent-color:var(--primary);">
+              <span id="valLineThresh" style="font-weight:800; color:var(--primary); font-family:var(--font-mono);">25%</span>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -1817,7 +1871,9 @@
     }
 
     async function connectAdditionalRobot() {
+      const btn = document.getElementById('btnAddRobot');
       try {
+        if (btn) btn.disabled = true;
         if (robot.connectNew) {
           await robot.connectNew();
         } else {
@@ -1825,6 +1881,8 @@
         }
       } catch (e) {
         alert('새 로봇 추가 연결 안내:\n' + e.message);
+      } finally {
+        if (btn) btn.disabled = false;
       }
     }
 
@@ -2011,8 +2069,13 @@
       });
 
       document.querySelectorAll('.studio-tab-btn').forEach(b => b.classList.remove('active'));
-      const targetBtn = btnEl || (typeof event !== 'undefined' ? event?.currentTarget : null) || document.querySelector(`.studio-tab-btn[onclick*="${tabId}"]`);
+      const targetBtn = btnEl || document.querySelector(`.studio-tab-btn[onclick*="'${tabId}'"]`);
       if (targetBtn && targetBtn.classList) targetBtn.classList.add('active');
+
+      const mobileFab = document.getElementById('btnMobileEmergencyFab');
+      if (mobileFab) {
+        mobileFab.style.display = (tabId === 'control') ? 'flex' : 'none';
+      }
 
       if (tabId !== 'vision' && visionActive && typeof visionAI !== 'undefined') {
         try {
@@ -2062,9 +2125,14 @@
         await robot.disconnect();
       } else {
         try {
+          statusText.textContent = '기기 검색 중...';
+          btnConnect.disabled = true;
           await robot.connect();
         } catch (e) {
+          statusText.textContent = '연결 대기';
           alert('블루투스 연결 안내:\n' + e.message);
+        } finally {
+          btnConnect.disabled = false;
         }
       }
     });
@@ -2303,16 +2371,17 @@
       const w = scopeCanvas.width;
       const h = scopeCanvas.height;
       if (w === 0 || h === 0) return;
+      const dpr = window.devicePixelRatio || 1;
 
       scopeCtx.clearRect(0, 0, w, h);
 
       // Background Grid
-      scopeCtx.strokeStyle = 'rgba(148, 163, 184, 0.15)';
-      scopeCtx.lineWidth = 1;
+      scopeCtx.strokeStyle = 'rgba(148, 163, 184, 0.2)';
+      scopeCtx.lineWidth = 1 * dpr;
 
       // Horizontal Center Reference Line (0 degrees)
       scopeCtx.beginPath();
-      scopeCtx.setLineDash([4, 4]);
+      scopeCtx.setLineDash([4 * dpr, 4 * dpr]);
       scopeCtx.moveTo(0, h / 2);
       scopeCtx.lineTo(w, h / 2);
       scopeCtx.stroke();
@@ -2326,15 +2395,16 @@
         scopeCtx.stroke();
       }
 
-      // Draw Trace Function
-      const drawTrace = (data, color, scale = 2.2) => {
+      // Draw Trace Function (Normalized to ±30 degrees without retina distortion)
+      const drawTrace = (data, color, gain = 1.0) => {
         scopeCtx.strokeStyle = color;
-        scopeCtx.lineWidth = 2.5 * (window.devicePixelRatio || 1);
+        scopeCtx.lineWidth = 2.5 * dpr;
         scopeCtx.beginPath();
         const step = w / (data.length - 1);
+        const degToPx = (h * 0.42) / 30; // 30 deg reaches 42% height from center
         for (let i = 0; i < data.length; i++) {
           const x = i * step;
-          const y = h / 2 - (data[i] * scale * (window.devicePixelRatio || 1));
+          const y = h / 2 - (data[i] * gain * degToPx);
           if (i === 0) scopeCtx.moveTo(x, y);
           else scopeCtx.lineTo(x, y);
         }
@@ -2342,8 +2412,8 @@
       };
 
       // Roll Trace (Green) & Pitch Trace (Blue)
-      drawTrace(rollHistory, '#10b981', 1.8);
-      drawTrace(pitchHistory, '#2563eb', 2.2);
+      drawTrace(rollHistory, '#10b981', 0.9);
+      drawTrace(pitchHistory, '#2563eb', 1.0);
     }
 
     // 6. Piano Keyboard Setup (Multi-Octave 36-Key & Jukebox)
@@ -2478,18 +2548,30 @@
         stopCurrentSong();
         return;
       }
-      stopCurrentSong(); // Stop any currently playing song first!
+      if (typeof piano !== 'undefined' && piano.stopSong) {
+        piano.stopSong();
+      }
+      document.querySelectorAll('#pianoKeyboard .active').forEach(k => k.classList.remove('active'));
       piano.unlockAudio();
       haptic(20);
 
-      await piano.playSong(songKey, (noteId, duration) => {
-        const key = document.querySelector(`.white-key[data-note="${noteId}"], .black-key[data-note="${noteId}"]`);
-        if (key) {
-          key.classList.add('active');
-          setTimeout(() => key.classList.remove('active'), Math.max(80, (duration || 250) * 0.75));
+      const sel = document.getElementById('songSelect');
+      if (sel) sel.value = songKey;
+
+      try {
+        await piano.playSong(songKey, (noteId, duration) => {
+          const key = document.querySelector(`.white-key[data-note="${noteId}"], .black-key[data-note="${noteId}"]`);
+          if (key) {
+            key.classList.add('active');
+            setTimeout(() => key.classList.remove('active'), Math.max(80, (duration || 250) * 0.75));
+          }
+          if (robot.isConnected) robot.playTone(noteId);
+        });
+      } finally {
+        if (sel && sel.value === songKey) {
+          sel.value = '';
         }
-        if (robot.isConnected) robot.playTone(noteId);
-      });
+      }
     }
 
     function playDemoSong() {
@@ -2871,6 +2953,7 @@
         const dir = btn.dataset.dir;
         if (dir === 'S') {
           robot.stop();
+          if (hudDrive) hudDrive.textContent = '0/0';
           btn.classList.add('pressed');
           haptic(20);
           return;
@@ -2881,17 +2964,29 @@
 
         const hi = Math.round(128 + 127 * speedMult);
         const lo = Math.round(128 - 127 * speedMult);
+        const pct = Math.round(speedMult * 100);
 
-        if (dir === 'F') robot.setDrive(128, hi);
-        else if (dir === 'B') robot.setDrive(128, lo);
-        else if (dir === 'L') robot.setDrive(lo, 128);
-        else if (dir === 'R') robot.setDrive(hi, 128);
+        if (dir === 'F') {
+          robot.setDrive(128, hi);
+          if (hudDrive) hudDrive.textContent = `0% / +${pct}%`;
+        } else if (dir === 'B') {
+          robot.setDrive(128, lo);
+          if (hudDrive) hudDrive.textContent = `0% / -${pct}%`;
+        } else if (dir === 'L') {
+          robot.setDrive(lo, 128);
+          if (hudDrive) hudDrive.textContent = `-${pct}% / 0%`;
+        } else if (dir === 'R') {
+          robot.setDrive(hi, 128);
+          if (hudDrive) hudDrive.textContent = `+${pct}% / 0%`;
+        }
+        if (hudInput) hudInput.textContent = 'D-패드';
         btn.classList.add('pressed');
         haptic(15);
       };
       const stopDrive = (e) => {
         e.preventDefault();
         robot.stop();
+        if (hudDrive) hudDrive.textContent = '0/0';
         btn.classList.remove('pressed');
       };
       btn.addEventListener('pointerdown', startDrive);
@@ -3012,10 +3107,11 @@
           }
         }
       } else {
-        if (key === 'w') robot.setDrive(128, hi);
-        else if (key === 's') robot.setDrive(128, lo);
-        else if (key === 'a') robot.setDrive(lo, 128);
-        else if (key === 'd') robot.setDrive(hi, 128);
+        const pct = Math.round(speedMult * 100);
+        if (key === 'w') { robot.setDrive(128, hi); if (hudDrive) hudDrive.textContent = `0% / +${pct}%`; }
+        else if (key === 's') { robot.setDrive(128, lo); if (hudDrive) hudDrive.textContent = `0% / -${pct}%`; }
+        else if (key === 'a') { robot.setDrive(lo, 128); if (hudDrive) hudDrive.textContent = `-${pct}% / 0%`; }
+        else if (key === 'd') { robot.setDrive(hi, 128); if (hudDrive) hudDrive.textContent = `+${pct}% / 0%`; }
         else if (key === ' ') {
           e.preventDefault();
           triggerEmergencyStop();
@@ -3027,7 +3123,10 @@
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
       const isPianoActive = document.getElementById('tabSecPiano')?.classList.contains('active');
       const key = e.key.toLowerCase();
-      if (!isPianoActive && ['w', 's', 'a', 'd'].includes(key)) robot.stop();
+      if (!isPianoActive && ['w', 's', 'a', 'd'].includes(key)) {
+        robot.stop();
+        if (hudDrive) hudDrive.textContent = '0/0';
+      }
     });
 
     // ==========================================================
@@ -3075,6 +3174,13 @@
       const label = document.getElementById('valReactionSpeed');
       if (label) label.textContent = `${spd}%`;
       if (colorSensor) colorSensor.setReactionSpeed(spd);
+    }
+
+    function updateLineThreshold(val) {
+      const v = Number(val) || 25;
+      const label = document.getElementById('valLineThresh');
+      if (label) label.textContent = `${v}%`;
+      if (colorSensor) colorSensor.setLineThreshold(v);
     }
 
     if (colorSensor) {
@@ -3377,6 +3483,20 @@
             badge.style.background = 'var(--primary-light)';
             badge.style.color = 'var(--primary)';
           }
+        }
+      });
+
+      blockCoding.addEventListener('emptyerror', (e) => {
+        const badge = document.getElementById('codingStatusBadge');
+        if (badge) {
+          badge.textContent = e.detail?.message || '실행할 블록이 없습니다!';
+          badge.style.background = 'var(--danger-light)';
+          badge.style.color = 'var(--danger)';
+          setTimeout(() => {
+            badge.textContent = `준비 완료 (${blockCoding.blocks.length}개 블록)`;
+            badge.style.background = 'var(--primary-light)';
+            badge.style.color = 'var(--primary)';
+          }, 2500);
         }
       });
 

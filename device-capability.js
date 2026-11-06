@@ -37,7 +37,7 @@ class DeviceCapabilityDetector {
     }
 
     // 3. Web Audio API
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    const AudioCtx = (typeof window !== 'undefined') ? (window.AudioContext || window.webkitAudioContext) : null;
     if (AudioCtx) {
       this.capabilities.webAudio = true;
     } else {

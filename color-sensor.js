@@ -12,6 +12,8 @@ class MiRobotColorSensor extends EventTarget {
     this.activePort = 'C'; // Default hardware port for color sensor
     this.autoReaction = false;
     this.reactionSpeed = 50;
+    this.lineThreshold = 25; // Reflectance threshold % for line detection
+    this.reactionTimer = null;
 
     // Standard Xiaomi Color Definitions
     this.COLOR_MAP = {
@@ -62,7 +64,17 @@ class MiRobotColorSensor extends EventTarget {
 
   setAutoReaction(enabled) {
     this.autoReaction = !!enabled;
+    if (!this.autoReaction && this.reactionTimer) {
+      clearTimeout(this.reactionTimer);
+      this.reactionTimer = null;
+      if (this.robot) this.robot.stop();
+    }
     this.dispatchEvent(new CustomEvent('autoreactionchange', { detail: { enabled: this.autoReaction } }));
+  }
+
+  setLineThreshold(val) {
+    this.lineThreshold = Math.max(5, Math.min(60, Math.round(val)));
+    this.updateState(this.currentState.colorId, this.currentState.grayscale, this.currentState.isSimulated);
   }
 
   setReactionSpeed(speed) {
@@ -72,7 +84,7 @@ class MiRobotColorSensor extends EventTarget {
   updateState(colorId, grayscale, isSimulated = false) {
     const info = this.COLOR_MAP[colorId] || this.COLOR_MAP[0];
     const gray = Math.max(0, Math.min(100, Math.round(grayscale)));
-    const isLine = gray <= 25;
+    const isLine = gray <= this.lineThreshold;
 
     this.currentState = {
       port: this.activePort,
@@ -151,11 +163,13 @@ class MiRobotColorSensor extends EventTarget {
       } else if (state.colorId === 2) {
         // Blue: Spin right 90 degrees
         console.log('[Color Reaction] 🔵 파란색 감지 -> 우회전');
+        if (this.reactionTimer) clearTimeout(this.reactionTimer);
         this.robot.setMotors(40, -40);
-        setTimeout(() => {
+        this.reactionTimer = setTimeout(() => {
           if (this.autoReaction && this.currentState.colorId === 2) {
             this.robot.stop();
           }
+          this.reactionTimer = null;
         }, 600);
       } else if (state.isLineDetected) {
         // Black Line Tracker: steer correction
