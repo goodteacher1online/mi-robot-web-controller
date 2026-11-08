@@ -26,6 +26,16 @@ class MiRobotColorSensor extends EventTarget {
       6: { name: 'White', ko: '흰색 (White)', hex: '#f8fafc', textColor: '#0f172a' }
     };
 
+    // User-configurable Color Reaction Rules
+    this.customRules = {
+      5: { key: 'red', name: '빨간색 (Red)', action: 'stop', speed: 0, duration: 0, tone: 25 },
+      3: { key: 'green', name: '초록색 (Green)', action: 'forward', speed: 50, duration: 0, tone: 0 },
+      4: { key: 'yellow', name: '노란색 (Yellow)', action: 'slow', speed: 25, duration: 0, tone: 15 },
+      2: { key: 'blue', name: '파란색 (Blue)', action: 'turn_right', speed: 50, duration: 600, tone: 0 },
+      6: { key: 'white', name: '흰색 (White)', action: 'none', speed: 0, duration: 0, tone: 0 },
+      1: { key: 'black', name: '검은색 라인 (Line)', action: 'line_trace', speed: 45, duration: 0, tone: 0 }
+    };
+
     // Current State
     this.currentState = {
       port: 'C',
@@ -133,48 +143,99 @@ class MiRobotColorSensor extends EventTarget {
     }
   }
 
+  setCustomRule(colorId, action, speed = 50, duration = 0, tone = 0) {
+    const id = Number(colorId);
+    if (!this.customRules[id]) {
+      this.customRules[id] = { action: 'none', speed: 50, duration: 0, tone: 0 };
+    }
+    this.customRules[id].action = action;
+    this.customRules[id].speed = Number(speed) || 50;
+    this.customRules[id].duration = Number(duration) || 0;
+    this.customRules[id].tone = Number(tone) || 0;
+    this.dispatchEvent(new CustomEvent('ruleschange', { detail: this.customRules }));
+  }
+
+  getCustomRule(colorId) {
+    return this.customRules[Number(colorId)] || null;
+  }
+
   /**
-   * Automatic Robot Reaction Loop
+   * Automatic Robot Reaction Loop (Configurable by user)
    */
   async executeAutoReaction(state) {
     if (!this.robot) return;
 
+    // Check if line detected first if in line trace mode
+    let targetRule = null;
+    if (state.isLineDetected && this.customRules[1]) {
+      targetRule = this.customRules[1];
+    } else if (this.customRules[state.colorId]) {
+      targetRule = this.customRules[state.colorId];
+    }
+
+    if (!targetRule || targetRule.action === 'none') {
+      return;
+    }
+
+    const { action, speed = 50, duration = 0, tone = 0 } = targetRule;
+    const finalSpeed = speed || this.reactionSpeed;
+
     try {
-      if (state.colorId === 5) {
-        // Red: Emergency Stop + Buzzer Alert
-        console.log('[Color Reaction] 🔴 빨간색 감지 -> 비상 정지');
+      if (action === 'stop') {
+        console.log(`[Color Reaction] 🔴 ${state.koreanName} 감지 -> 즉시 정지`);
         await this.robot.sendStop();
-        if (typeof this.robot.playTone === 'function') {
-          this.robot.playTone(25); // Alert tone
+        if (tone && typeof this.robot.playTone === 'function') {
+          this.robot.playTone(tone);
         }
-      } else if (state.colorId === 3) {
-        // Green: Forward drive at configured reaction speed
-        console.log('[Color Reaction] 🟢 초록색 감지 -> 전진 주행');
-        const throttleY = 128 + Math.round((this.reactionSpeed / 100) * 127);
+      } else if (action === 'forward') {
+        console.log(`[Color Reaction] 🟢 ${state.koreanName} 감지 -> 전진 주행 (${finalSpeed}%)`);
+        const throttleY = 128 + Math.round((finalSpeed / 100) * 127);
         this.robot.setDrive(128, throttleY);
-      } else if (state.colorId === 4) {
-        // Yellow: Slow speed + short beep
-        console.log('[Color Reaction] 🟡 노란색 감지 -> 서행');
-        const slowThrottleY = 128 + Math.round(25 * 1.27);
-        this.robot.setDrive(128, slowThrottleY);
-        if (typeof this.robot.playTone === 'function') {
-          this.robot.playTone(15);
+        if (tone && typeof this.robot.playTone === 'function') {
+          this.robot.playTone(tone);
         }
-      } else if (state.colorId === 2) {
-        // Blue: Spin right 90 degrees
-        console.log('[Color Reaction] 🔵 파란색 감지 -> 우회전');
+      } else if (action === 'backward') {
+        console.log(`[Color Reaction] 🔙 ${state.koreanName} 감지 -> 후진 주행 (${finalSpeed}%)`);
+        const throttleY = 128 - Math.round((finalSpeed / 100) * 127);
+        this.robot.setDrive(128, throttleY);
+        if (tone && typeof this.robot.playTone === 'function') {
+          this.robot.playTone(tone);
+        }
+      } else if (action === 'slow') {
+        console.log(`[Color Reaction] 🟡 ${state.koreanName} 감지 -> 서행 주행 (${finalSpeed}%)`);
+        const slowThrottleY = 128 + Math.round((finalSpeed / 100) * 127);
+        this.robot.setDrive(128, slowThrottleY);
+        if (tone && typeof this.robot.playTone === 'function') {
+          this.robot.playTone(tone);
+        }
+      } else if (action === 'turn_left') {
+        console.log(`[Color Reaction] ↩️ ${state.koreanName} 감지 -> 좌회전`);
         if (this.reactionTimer) clearTimeout(this.reactionTimer);
-        this.robot.setMotors(40, -40);
-        this.reactionTimer = setTimeout(() => {
-          if (this.autoReaction && this.currentState.colorId === 2) {
-            this.robot.stop();
-          }
-          this.reactionTimer = null;
-        }, 600);
-      } else if (state.isLineDetected) {
-        // Black Line Tracker: steer correction
-        console.log('[Color Reaction] 〰️ 검은색 라인 감지 -> 선 추적 조향');
-        this.robot.setMotors(20, 45); // Adjust right
+        this.robot.setMotors(-finalSpeed, finalSpeed);
+        if (duration > 0) {
+          this.reactionTimer = setTimeout(() => {
+            if (this.autoReaction) this.robot.stop();
+            this.reactionTimer = null;
+          }, duration);
+        }
+      } else if (action === 'turn_right') {
+        console.log(`[Color Reaction] ↪️ ${state.koreanName} 감지 -> 우회전`);
+        if (this.reactionTimer) clearTimeout(this.reactionTimer);
+        this.robot.setMotors(finalSpeed, -finalSpeed);
+        if (duration > 0) {
+          this.reactionTimer = setTimeout(() => {
+            if (this.autoReaction) this.robot.stop();
+            this.reactionTimer = null;
+          }, duration);
+        }
+      } else if (action === 'tone') {
+        console.log(`[Color Reaction] 🎵 ${state.koreanName} 감지 -> 음계(#${tone}) 재생`);
+        if (typeof this.robot.playTone === 'function') {
+          this.robot.playTone(tone || 13);
+        }
+      } else if (action === 'line_trace') {
+        console.log(`[Color Reaction] 〰️ 검은색 라인 감지 -> 선 추적 조향 (${finalSpeed}%)`);
+        this.robot.setMotors(Math.round(finalSpeed * 0.4), finalSpeed);
       }
     } catch (e) {
       console.warn('Auto reaction error:', e);

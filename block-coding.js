@@ -322,6 +322,7 @@ class BlockCodingStudio extends EventTarget {
       if (this.robot) this.robot.setDrive(128, y);
       await this.sleep(dur * 1000, signal);
       if (this.robot) this.robot.stop();
+      await this.sleep(80, signal);
     }
 
     else if (type === 'drive_backward') {
@@ -331,6 +332,7 @@ class BlockCodingStudio extends EventTarget {
       if (this.robot) this.robot.setDrive(128, y);
       await this.sleep(dur * 1000, signal);
       if (this.robot) this.robot.stop();
+      await this.sleep(80, signal);
     }
 
     else if (type === 'turn_left') {
@@ -340,6 +342,7 @@ class BlockCodingStudio extends EventTarget {
       if (this.robot) this.robot.setDrive(x, 128);
       await this.sleep(dur * 1000, signal);
       if (this.robot) this.robot.stop();
+      await this.sleep(80, signal);
     }
 
     else if (type === 'turn_right') {
@@ -349,6 +352,7 @@ class BlockCodingStudio extends EventTarget {
       if (this.robot) this.robot.setDrive(x, 128);
       await this.sleep(dur * 1000, signal);
       if (this.robot) this.robot.stop();
+      await this.sleep(80, signal);
     }
 
     else if (type === 'motor_dual') {
@@ -358,6 +362,7 @@ class BlockCodingStudio extends EventTarget {
       if (this.robot) this.robot.setMotors(left, right);
       await this.sleep(dur * 1000, signal);
       if (this.robot) this.robot.stop();
+      await this.sleep(80, signal);
     }
 
     else if (type === 'stop') {

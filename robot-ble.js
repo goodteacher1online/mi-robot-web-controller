@@ -17,11 +17,16 @@ class MiRobotBLE extends EventTarget {
     this.txChar = null;
     this.isConnected = false;
 
-    // Movement axes (0..255, Neutral = 128)
+    // Movement axes & motors (0..255, Neutral = 128)
     this.axisX = 128;
     this.axisY = 128;
+    this.axisLeft = 128;
+    this.axisRight = 128;
     this.invertX = false;
     this.invertY = false;
+    this.invertLeft = false;
+    this.invertRight = false;
+    this.isSelfBalancing = true;
 
     // Speaker volume (0..15)
     this.volume = 10;
@@ -81,25 +86,27 @@ class MiRobotBLE extends EventTarget {
     return this.buildPacket(p);
   }
 
-  buildRockerPacket(x, y) {
+  buildRockerPacket(left, right) {
     const p = new Uint8Array(18);
     p[0] = 0x55;
     p[1] = 0x02; // Movement group
     p[2] = 0x02;
     p[3] = 0x00;
 
-    let finalX = Math.max(0, Math.min(255, Math.round(x)));
-    let finalY = Math.max(0, Math.min(255, Math.round(y)));
+    let finalL = Math.max(0, Math.min(255, Math.round(left)));
+    let finalR = Math.max(0, Math.min(255, Math.round(right)));
 
-    if (this.invertX) finalX = (256 - finalX) & 0xff;
-    if (this.invertY) finalY = (256 - finalY) & 0xff;
+    if (this.invertLeft) finalL = (256 - finalL) & 0xff;
+    if (this.invertRight) finalR = (256 - finalR) & 0xff;
 
-    // Xiaomi Protocol Rocker Encoding:
-    // Byte 4: X axis (0~255, center=128), Byte 5: 0x00
-    // Byte 6: Y axis (0~255, center=128), Byte 7: 0x00
-    p[4] = finalX & 0xff;
+    // Xiaomi Protocol Rocker & Direct Motor Port Encoding:
+    // Byte 4: Left Motor (Port A, 0~255, Neutral=128)
+    // Byte 5: 0x00
+    // Byte 6: Right Motor (Port B, 0~255, Neutral=128)
+    // Byte 7: 0x00
+    p[4] = finalL & 0xff;
     p[5] = 0x00;
-    p[6] = finalY & 0xff;
+    p[6] = finalR & 0xff;
     p[7] = 0x00;
 
     return this.buildPacket(p);
@@ -311,24 +318,24 @@ class MiRobotBLE extends EventTarget {
   startHeartbeat() {
     if (this.heartbeatTimer) clearInterval(this.heartbeatTimer);
 
-    let lastSentX = 128, lastSentY = 128;
+    let lastSentL = 128, lastSentR = 128;
     let lastSendTime = 0;
 
     this.heartbeatTimer = setInterval(async () => {
       if (!this.isConnected || !this.rxChar) return;
       const now = Date.now();
-      const isMoving = (this.axisX !== 128 || this.axisY !== 128);
-      const changed = (this.axisX !== lastSentX || this.axisY !== lastSentY);
+      const isMoving = (this.axisLeft !== 128 || this.axisRight !== 128);
+      const changed = (this.axisLeft !== lastSentL || this.axisRight !== lastSentR);
 
       // If moving: send at 60ms intervals or on change
       // If idle (128, 128): send keepalive ping only every 350ms to prevent BLE buffer congestion
       const interval = isMoving ? 60 : 350;
 
       if (changed || (now - lastSendTime >= interval)) {
-        lastSentX = this.axisX;
-        lastSentY = this.axisY;
+        lastSentL = this.axisLeft;
+        lastSentR = this.axisRight;
         lastSendTime = now;
-        const pkt = this.buildRockerPacket(this.axisX, this.axisY);
+        const pkt = this.buildRockerPacket(this.axisLeft, this.axisRight);
         await this.writeRaw(pkt);
       }
     }, 35);
@@ -347,12 +354,33 @@ class MiRobotBLE extends EventTarget {
     }
     this.axisX = Math.max(0, Math.min(255, Math.round(x)));
     this.axisY = Math.max(0, Math.min(255, Math.round(y)));
-    this.dispatchEvent(new CustomEvent('drive', { detail: { x: this.axisX, y: this.axisY } }));
+
+    let finalX = this.axisX;
+    let finalY = this.axisY;
+    if (this.invertX) finalX = (256 - finalX) & 0xff;
+    if (this.invertY) finalY = (256 - finalY) & 0xff;
+
+    // Convert Joystick Throttle (Y) and Steering (X) to Left and Right motor speeds
+    const normY = (finalY - 128) / 127.0; // [-1.0 .. +1.0] Forward is positive
+    const normX = (finalX - 128) / 127.0; // [-1.0 .. +1.0] Right is positive
+
+    let leftNorm = normY + normX;
+    let rightNorm = normY - normX;
+    const maxMag = Math.max(1.0, Math.abs(leftNorm), Math.abs(rightNorm));
+    leftNorm /= maxMag;
+    rightNorm /= maxMag;
+
+    this.axisLeft = Math.max(0, Math.min(255, Math.round(128 + leftNorm * 127)));
+    this.axisRight = Math.max(0, Math.min(255, Math.round(128 + rightNorm * 127)));
+
+    this.dispatchEvent(new CustomEvent('drive', {
+      detail: { x: this.axisX, y: this.axisY, left: this.axisLeft, right: this.axisRight }
+    }));
   }
 
   /**
    * Dual Individual Motor Speed Control (-100% to +100%)
-   * Maps independent Left & Right motor power to differential drive vectors
+   * Directly drives Left Motor (Port A) and Right Motor (Port B) independently
    */
   setMotors(leftPct, rightPct) {
     if (this.isEmergencyStopped && (leftPct !== 0 || rightPct !== 0)) {
@@ -361,23 +389,29 @@ class MiRobotBLE extends EventTarget {
     const left = Math.max(-100, Math.min(100, Number(leftPct) || 0));
     const right = Math.max(-100, Math.min(100, Number(rightPct) || 0));
 
-    // Differential steering conversion:
-    // Forward / reverse throttle (Y): average of both motors
-    // Steering rotation (X): right minus left (positive turns right, negative turns left)
+    // Direct mapping to motor byte values (Port A = Byte 4, Port B = Byte 6)
+    this.axisLeft = Math.max(0, Math.min(255, Math.round(128 + (left / 100) * 127)));
+    this.axisRight = Math.max(0, Math.min(255, Math.round(128 + (right / 100) * 127)));
+
+    // Derive approximate X/Y for HUD telemetry display
     const avgThrottle = (left + right) / 2.0;
-    const diffSteer = (right - left) / 2.0;
+    const diffSteer = (left - right) / 2.0;
+    this.axisY = Math.round(128 + avgThrottle * 1.27);
+    this.axisX = Math.round(128 + diffSteer * 1.27);
 
-    const y = 128 + Math.round(avgThrottle * 1.27);
-    const x = 128 + Math.round(diffSteer * 1.27);
-
-    this.setDrive(x, y);
-    this.dispatchEvent(new CustomEvent('motorchange', { detail: { left, right, x, y } }));
+    this.dispatchEvent(new CustomEvent('motorchange', {
+      detail: { left, right, axisLeft: this.axisLeft, axisRight: this.axisRight, x: this.axisX, y: this.axisY }
+    }));
   }
 
   stop() {
     this.axisX = 128;
     this.axisY = 128;
-    this.dispatchEvent(new CustomEvent('drive', { detail: { x: 128, y: 128 } }));
+    this.axisLeft = 128;
+    this.axisRight = 128;
+    this.dispatchEvent(new CustomEvent('drive', {
+      detail: { x: 128, y: 128, left: 128, right: 128 }
+    }));
   }
 
   async writeDirect(bytes) {
@@ -398,9 +432,6 @@ class MiRobotBLE extends EventTarget {
   }
 
   async sendStop() {
-    this.isEmergencyStopped = true;
-    setTimeout(() => { this.isEmergencyStopped = false; }, 400);
-
     this.stop();
     // Flush any backlogged non-stop writes in queue
     this._writeQueue = Promise.resolve();
@@ -409,18 +440,45 @@ class MiRobotBLE extends EventTarget {
     if (!this.isConnected || !this.rxChar) return;
 
     const stopPkt = this.buildRockerPacket(128, 128);
-    this.log('🛑 [비상 정지] 3중 셧다운 패킷 즉각 방출', 'warn');
-
-    // High-priority triple burst (0ms, 25ms, 50ms) to ensure delivery even over noisy 2.4GHz BLE
     try {
       await this.writeDirect(stopPkt);
-      await new Promise(r => setTimeout(r, 25));
+      await new Promise(r => setTimeout(r, 20));
       await this.writeDirect(stopPkt);
-      await new Promise(r => setTimeout(r, 25));
+    } catch (e) {
+      console.warn('Stop packet error:', e);
+    }
+  }
+
+  async emergencyHalt() {
+    this.isEmergencyStopped = true;
+    setTimeout(() => { this.isEmergencyStopped = false; }, 600);
+    this.stop();
+    this.log('🛑 [비상 정지] 3중 셧다운 패킷 즉각 방출', 'warn');
+
+    if (!this.isConnected || !this.rxChar) return;
+    const stopPkt = this.buildRockerPacket(128, 128);
+    try {
+      await this.writeDirect(stopPkt);
+      await new Promise(r => setTimeout(r, 20));
+      await this.writeDirect(stopPkt);
+      await new Promise(r => setTimeout(r, 20));
       await this.writeDirect(stopPkt);
     } catch (e) {
       console.warn('Emergency stop burst error:', e);
     }
+  }
+
+  async setBalanceActive(enabled) {
+    this.isSelfBalancing = !!enabled;
+    if (this.isSelfBalancing) {
+      await this.setBalancePID(this.pid.angleP || 50, this.pid.angleD || 30, this.pid.speedP || 40, this.pid.speedI || 20);
+      this.log('⚖️ 자가 밸런싱 모드 활성화 (2륜 자립 균형)', 'info');
+    } else {
+      await this.setBalancePID(0, 0, 0, 0);
+      this.log('🚜 자가 밸런싱 모드 해제 (3륜/4륜/탱크 모드)', 'info');
+    }
+    this.dispatchEvent(new CustomEvent('balanceactivechange', { detail: { active: this.isSelfBalancing } }));
+    return this.isSelfBalancing;
   }
 
   async playSound(soundId = 1) {
@@ -635,18 +693,26 @@ class MiRobotFleet extends EventTarget {
   }
 
   stop() {
-    this.isEmergencyStopped = true;
-    setTimeout(() => { this.isEmergencyStopped = false; }, 400);
     this.robots.forEach(r => {
       try { r.stop(); } catch (e) {}
     });
   }
 
   async sendStop() {
-    this.isEmergencyStopped = true;
-    setTimeout(() => { this.isEmergencyStopped = false; }, 400);
     this.stop();
     return Promise.allSettled(this.robots.map(r => r.sendStop()));
+  }
+
+  async emergencyHalt() {
+    this.isEmergencyStopped = true;
+    setTimeout(() => { this.isEmergencyStopped = false; }, 600);
+    this.stop();
+    return Promise.allSettled(this.robots.map(r => r.emergencyHalt ? r.emergencyHalt() : r.sendStop()));
+  }
+
+  async setBalanceActive(enabled) {
+    this.isSelfBalancing = !!enabled;
+    return Promise.allSettled(this.robots.map(r => r.setBalanceActive ? r.setBalanceActive(enabled) : Promise.resolve()));
   }
 
   playTone(noteId) {

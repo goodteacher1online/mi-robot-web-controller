@@ -11,12 +11,12 @@ def run_tests():
         page = context.new_page()
 
         def handle_console(msg):
+            print(f"[CONSOLE {msg.type}] {msg.text}")
             if msg.type == "error":
                 console_errors.append(msg.text)
-                print(f"[BROWSER ERROR] {msg.text}")
 
         page.on("console", handle_console)
-        page.on("pageerror", lambda err: console_errors.append(str(err)))
+        page.on("pageerror", lambda err: print(f"[PAGE ERROR] {err}"))
 
         # Load local controller page
         url = "file:///C:/Users/user/mi-robot-web-controller/index.html"
