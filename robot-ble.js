@@ -42,6 +42,11 @@ class MiRobotBLE extends EventTarget {
       lastUpdated: null
     };
 
+    // Per-Port Sensor Readings (Ports A, B, C, D) & Packet Stats
+    this.sensors = { A: null, B: null, C: null, D: null };
+    this.packetCount = 0;
+    this.lastPacketAt = null;
+
     // PID Parameters for 2-wheel Self-Balancing
     this.pid = {
       angleP: 50,
@@ -250,17 +255,32 @@ class MiRobotBLE extends EventTarget {
    */
   _parseTelemetry(e) {
     const val = new Uint8Array(e.target.value.buffer);
+    const robotId = this.device?.id || null;
+    const robotName = this.device?.name || 'Mi Robot';
+    const now = Date.now();
+    this.packetCount++;
+    this.lastPacketAt = now;
+
+    const hex = Array.from(val)
+      .map(b => b.toString(16).padStart(2, '0').toUpperCase())
+      .join(' ');
+
+    let category = 'unknown';
     if (val.length >= 6 && val[0] === 0x55) {
-      this.telemetry.lastUpdated = new Date();
+      this.telemetry.lastUpdated = new Date(now);
 
       // Battery / Status packet
       if (val[1] === 0x01 && val[2] === 0x02) {
+        category = 'battery';
         this.telemetry.battery = val[4];
-        this.dispatchEvent(new CustomEvent('telemetry', { detail: this.telemetry }));
+        this.dispatchEvent(new CustomEvent('telemetry', {
+          detail: { ...this.telemetry, robotId, robotName, fromRawPacket: true }
+        }));
       }
 
       // Gyro / IMU Balance packet (Group 0x03 or 0x06)
       if (val[1] === 0x03 || val[1] === 0x06) {
+        category = 'imu';
         // Raw signed 16-bit pitch angle
         let rawPitch = (val[4] << 8) | val[5];
         if (rawPitch > 32767) rawPitch -= 65536;
@@ -270,22 +290,59 @@ class MiRobotBLE extends EventTarget {
         if (rawRoll > 32767) rawRoll -= 65536;
         this.telemetry.roll = rawRoll / 10.0;
 
-        this.dispatchEvent(new CustomEvent('telemetry', { detail: this.telemetry }));
+        if (val.length >= 10) {
+          let rawYaw = (val[8] << 8) | val[9];
+          if (rawYaw > 32767) rawYaw -= 65536;
+          this.telemetry.yaw = rawYaw / 10.0;
+        }
+
+        this.dispatchEvent(new CustomEvent('telemetry', {
+          detail: { ...this.telemetry, robotId, robotName, fromRawPacket: true }
+        }));
       }
 
       // Sensor telemetry (Group 0x04 or 0x05)
       // Port: A=0, B=1, C=2, D=3 | SensorType: 0x01=Motor, 0x02=Color, 0x03=Grayscale/Line
       if (val[1] === 0x04 || val[1] === 0x05) {
+        category = 'sensor';
         const portIdx = val[2];
         const portName = ['A', 'B', 'C', 'D'][portIdx] || 'C';
         const sensorType = val[3];
         const colorId = val[4];
         const grayscale = val[5];
-        this.dispatchEvent(new CustomEvent('sensordata', {
-          detail: { port: portName, sensorType, colorId, grayscale, raw: val }
-        }));
+        const value16 = (val[4] << 8) | val[5];
+
+        const reading = {
+          robotId,
+          robotName,
+          port: portName,
+          sensorType,
+          colorId,
+          grayscale,
+          value16,
+          raw: Array.from(val),
+          timestamp: now,
+          fromRawPacket: true
+        };
+        this.sensors[portName] = reading;
+
+        this.dispatchEvent(new CustomEvent('sensordata', { detail: reading }));
       }
     }
+
+    this.dispatchEvent(new CustomEvent('rawpacket', {
+      detail: {
+        robotId,
+        robotName,
+        bytes: Array.from(val),
+        hex,
+        group: val.length > 1 ? val[1] : null,
+        type: val.length > 2 ? val[2] : null,
+        sub: val.length > 3 ? val[3] : null,
+        category,
+        timestamp: now
+      }
+    }));
   }
 
   async calibrateBalance() {
@@ -540,6 +597,8 @@ class MiRobotBLE extends EventTarget {
     this.stopHeartbeat();
     this.axisX = 128;
     this.axisY = 128;
+    this.axisLeft = 128;
+    this.axisRight = 128;
 
     if (this.device && this.device.gatt) {
       try { this.device.gatt.disconnect(); } catch (e) {}
@@ -578,6 +637,8 @@ class MiRobotBLE extends EventTarget {
     this._queueDepth = 0;
     this.axisX = 128;
     this.axisY = 128;
+    this.axisLeft = 128;
+    this.axisRight = 128;
 
     this.dispatchEvent(new CustomEvent('connectionchange', { detail: { connected: false } }));
   }
@@ -619,27 +680,70 @@ class MiRobotFleet extends EventTarget {
     return this.robots.find(r => r.device && r.device.id === this.activeTarget) || this.robots[0];
   }
 
-  async connectNew() {
-    const r = new MiRobotBLE();
-    await r.connect();
-    this.robots.push(r);
+  getRobotById(id) {
+    if (!id || id === 'all') return this.getTargetRobot();
+    return this.robots.find((r, i) => (r.device?.id || `robot_${i}`) === id) || null;
+  }
+
+  _attachRobotListeners(r) {
+    const withMeta = (detail = {}) => ({
+      ...detail,
+      robotId: detail.robotId || r.device?.id || `robot_${this.robots.indexOf(r)}`,
+      robotName: detail.robotName || r.device?.name || 'Mi Robot'
+    });
 
     r.addEventListener('telemetry', (e) => {
-      if (this.activeTarget === 'all' || (r.device && r.device.id === this.activeTarget)) {
-        this.dispatchEvent(new CustomEvent('telemetry', { detail: e.detail }));
-      }
+      this.dispatchEvent(new CustomEvent('telemetry', { detail: withMeta(e.detail) }));
     });
 
     r.addEventListener('sensordata', (e) => {
-      this.dispatchEvent(new CustomEvent('sensordata', { detail: e.detail }));
+      this.dispatchEvent(new CustomEvent('sensordata', { detail: withMeta(e.detail) }));
     });
 
-    r.addEventListener('connectionchange', (e) => {
-      this.dispatchEvent(new CustomEvent('fleetchange', { detail: { count: this.connectedCount, robots: this.getRobotList() } }));
-      this.dispatchEvent(new CustomEvent('connectionchange', { detail: { connected: this.isConnected, deviceName: r.device?.name || 'Mi Robot' } }));
+    r.addEventListener('rawpacket', (e) => {
+      this.dispatchEvent(new CustomEvent('rawpacket', { detail: withMeta(e.detail) }));
     });
 
-    this.dispatchEvent(new CustomEvent('fleetchange', { detail: { count: this.connectedCount, robots: this.getRobotList() } }));
+    r.addEventListener('drive', (e) => {
+      this.dispatchEvent(new CustomEvent('drive', { detail: withMeta(e.detail) }));
+    });
+
+    r.addEventListener('motorchange', (e) => {
+      this.dispatchEvent(new CustomEvent('motorchange', { detail: withMeta(e.detail) }));
+    });
+
+    r.addEventListener('connectionchange', () => {
+      this.dispatchEvent(new CustomEvent('fleetchange', {
+        detail: { count: this.connectedCount, robots: this.getRobotList() }
+      }));
+      this.dispatchEvent(new CustomEvent('connectionchange', {
+        detail: { connected: this.isConnected, deviceName: r.device?.name || 'Mi Robot' }
+      }));
+    });
+  }
+
+  async connectNew() {
+    const r = new MiRobotBLE();
+    await r.connect();
+
+    // Prevent duplicate entries for the same BLE device ID
+    if (r.device && r.device.id) {
+      const existingIdx = this.robots.findIndex(item => item.device && item.device.id === r.device.id);
+      if (existingIdx !== -1) {
+        const old = this.robots[existingIdx];
+        this.robots.splice(existingIdx, 1);
+        if (old !== r) {
+          try { old.stopHeartbeat(); } catch (e) {}
+        }
+      }
+    }
+
+    this.robots.push(r);
+    this._attachRobotListeners(r);
+
+    this.dispatchEvent(new CustomEvent('fleetchange', {
+      detail: { count: this.connectedCount, robots: this.getRobotList() }
+    }));
     return r;
   }
 
@@ -647,11 +751,35 @@ class MiRobotFleet extends EventTarget {
     return this.connectNew();
   }
 
+  async disconnectRobot(deviceId) {
+    const idx = this.robots.findIndex((r, i) => (r.device?.id || `robot_${i}`) === deviceId);
+    if (idx === -1) return false;
+
+    const target = this.robots[idx];
+    this.robots.splice(idx, 1);
+    try {
+      await target.disconnect();
+    } catch (e) {}
+
+    if (this.activeTarget === deviceId) {
+      this.activeTarget = 'all';
+    }
+
+    this.dispatchEvent(new CustomEvent('fleetchange', {
+      detail: { count: this.connectedCount, robots: this.getRobotList() }
+    }));
+    this.dispatchEvent(new CustomEvent('connectionchange', {
+      detail: { connected: this.isConnected, deviceName: this.device?.name || 'Mi Robot' }
+    }));
+    return true;
+  }
+
   async disconnect() {
     for (const r of this.robots) {
       await r.disconnect();
     }
     this.robots = [];
+    this.activeTarget = 'all';
     this.dispatchEvent(new CustomEvent('fleetchange', { detail: { count: 0, robots: [] } }));
     this.dispatchEvent(new CustomEvent('connectionchange', { detail: { connected: false } }));
   }
@@ -664,12 +792,35 @@ class MiRobotFleet extends EventTarget {
     return this.robots.map((r, i) => ({
       id: r.device?.id || `robot_${i}`,
       name: r.device?.name || `로봇 ${i + 1}`,
-      connected: r.isConnected
+      connected: r.isConnected,
+      telemetry: { ...r.telemetry },
+      sensors: { ...r.sensors },
+      axisLeft: r.axisLeft,
+      axisRight: r.axisRight,
+      packetCount: r.packetCount || 0,
+      lastPacketAt: r.lastPacketAt || null
     }));
   }
 
   setDrive(x, y) {
     if (this.isEmergencyStopped && (x !== 128 || y !== 128)) {
+      return;
+    }
+    if (this.robots.length === 0) {
+      const clampedX = Math.max(0, Math.min(255, Math.round(x)));
+      const clampedY = Math.max(0, Math.min(255, Math.round(y)));
+      const normY = (clampedY - 128) / 127.0;
+      const normX = (clampedX - 128) / 127.0;
+      let leftNorm = normY + normX;
+      let rightNorm = normY - normX;
+      const maxMag = Math.max(1.0, Math.abs(leftNorm), Math.abs(rightNorm));
+      leftNorm /= maxMag;
+      rightNorm /= maxMag;
+      const axisLeft = Math.max(0, Math.min(255, Math.round(128 + leftNorm * 127)));
+      const axisRight = Math.max(0, Math.min(255, Math.round(128 + rightNorm * 127)));
+      this.dispatchEvent(new CustomEvent('drive', {
+        detail: { x: clampedX, y: clampedY, left: axisLeft, right: axisRight }
+      }));
       return;
     }
     if (this.activeTarget === 'all') {
@@ -682,6 +833,16 @@ class MiRobotFleet extends EventTarget {
 
   setMotors(left, right) {
     if (this.isEmergencyStopped && (left !== 0 || right !== 0)) {
+      return;
+    }
+    if (this.robots.length === 0) {
+      const l = Math.max(-100, Math.min(100, Number(left) || 0));
+      const r = Math.max(-100, Math.min(100, Number(right) || 0));
+      const axisLeft = Math.max(0, Math.min(255, Math.round(128 + (l / 100) * 127)));
+      const axisRight = Math.max(0, Math.min(255, Math.round(128 + (r / 100) * 127)));
+      this.dispatchEvent(new CustomEvent('motorchange', {
+        detail: { left: l, right: r, axisLeft, axisRight }
+      }));
       return;
     }
     if (this.activeTarget === 'all') {
@@ -756,10 +917,57 @@ class MiRobotFleet extends EventTarget {
     if (target) return target.readPIDGains();
   }
 
-  simulateSensorData(port = 'C', data = {}) {
-    this.dispatchEvent(new CustomEvent('sensordata', {
-      detail: { port, ...data }
-    }));
+  simulateTelemetry(data = {}, robotId = null) {
+    const target = robotId ? this.getRobotById(robotId) : this.getTargetRobot();
+    const now = Date.now();
+    const resolvedId = robotId || target?.device?.id || 'sim_robot';
+    const resolvedName = target?.device?.name || 'Mi Robot';
+
+    const payload = {
+      battery: data.battery !== undefined ? data.battery : (target?.telemetry?.battery ?? null),
+      pitch: typeof data.pitch === 'number' ? data.pitch : (target?.telemetry?.pitch ?? 0),
+      roll: typeof data.roll === 'number' ? data.roll : (target?.telemetry?.roll ?? 0),
+      yaw: typeof data.yaw === 'number' ? data.yaw : (target?.telemetry?.yaw ?? 0),
+      lastUpdated: new Date(now),
+      robotId: resolvedId,
+      robotName: resolvedName
+    };
+
+    if (target) {
+      Object.assign(target.telemetry, payload);
+      target.packetCount = (target.packetCount || 0) + 1;
+      target.lastPacketAt = now;
+    }
+
+    this.dispatchEvent(new CustomEvent('telemetry', { detail: payload }));
+  }
+
+  simulateSensorData(port = 'C', data = {}, robotId = null) {
+    const target = robotId ? this.getRobotById(robotId) : this.getTargetRobot();
+    const now = Date.now();
+    const resolvedId = robotId || target?.device?.id || 'sim_robot';
+    const resolvedName = target?.device?.name || 'Mi Robot';
+
+    const reading = {
+      port,
+      sensorType: data.sensorType ?? 2,
+      colorId: data.colorId ?? 0,
+      grayscale: data.grayscale ?? 80,
+      value16: data.value16 ?? (((data.colorId ?? 0) << 8) | (data.grayscale ?? 80)),
+      raw: data.raw || [],
+      timestamp: now,
+      robotId: resolvedId,
+      robotName: resolvedName,
+      ...data
+    };
+
+    if (target && target.sensors) {
+      target.sensors[port] = reading;
+      target.packetCount = (target.packetCount || 0) + 1;
+      target.lastPacketAt = now;
+    }
+
+    this.dispatchEvent(new CustomEvent('sensordata', { detail: reading }));
   }
 }
 

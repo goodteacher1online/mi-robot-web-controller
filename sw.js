@@ -1,22 +1,12 @@
-const CACHE_NAME = 'mi-robot-v3.0';
+const CACHE_NAME = 'mi-robot-v4.0';
 const ASSETS = [
   './',
   './index.html',
   './robot-ble.js',
-  './device-capability.js',
   './robot-alias.js',
-  './piano-engine.js',
-  './sensor-ml.js',
-  './vision-ai.js',
-  './color-sensor.js',
-  './block-coding.js',
   './manifest.json',
   './icon.png'
 ];
-
-for (let i = 1; i <= 36; i++) {
-  ASSETS.push(`./audio/piano${i}.wav`);
-}
 
 self.addEventListener('install', (e) => {
   self.skipWaiting();
@@ -38,12 +28,16 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Network-First for navigation & HTML, Cache-First for media/static
+// Network-First for HTML & JS/JSON, Cache-First for static media
 self.addEventListener('fetch', (e) => {
   const url = new URL(e.request.url);
-  const isHtml = e.request.mode === 'navigate' || url.pathname.endsWith('.html') || url.pathname.endsWith('/');
+  const isCodeOrDoc = e.request.mode === 'navigate' ||
+                      url.pathname.endsWith('.html') ||
+                      url.pathname.endsWith('/') ||
+                      url.pathname.endsWith('.js') ||
+                      url.pathname.endsWith('.json');
 
-  if (isHtml) {
+  if (isCodeOrDoc) {
     e.respondWith(
       fetch(e.request)
         .then((res) => {
